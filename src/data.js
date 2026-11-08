@@ -1,6 +1,6 @@
 // Content for every clickable element, in Spanish (main), English and Chinese.
 // Nahuatl names use the modern practical orthography (tlajkuilolpamitl, SEP-style):
-//   k = c/qu, kw = cu/uc, w = hu/uh, s = z/ce/ci, ts = tz, j = saltillo (h), no vowel-length marks.
+//   k = c/qu, ku = cu/uc, u = hu/uh, s = z/ce/ci, ts = tz, j = saltillo (h), no vowel-length marks.
 // `classical` keeps the colonial-era spelling (with vowel length) for comparison.
 // Words in Nahuatl and cultural data should be validated with speakers before publishing.
 
@@ -89,7 +89,7 @@ export const ELEMENTS = {
   stakes: {
     view: 'chinampa',
     group: 'structure',
-    nahuatl: 'kwawitl',
+    nahuatl: 'kuauitl',
     classical: 'cuahuitl',
     t: {
       es: {
@@ -248,26 +248,26 @@ export const ELEMENTS = {
   ahuejote: {
     view: 'chinampa',
     group: 'structure',
-    nahuatl: 'awexotl',
+    nahuatl: 'auexotl',
     classical: 'āhuēxōtl',
     t: {
       es: {
         name: 'Ahuejote',
-        gloss: '«Sauce de agua» (a- agua + wexotl sauce)',
+        gloss: '«Sauce de agua» (a- agua + uexotl sauce)',
         fn: 'Estacas vivas: sus raíces amarran la orilla de la chinampa al fondo del lago y evitan la erosión.',
         desc: 'El ahuejote (Salix bonplandiana) crece alto y angosto, así que casi no da sombra a los cultivos. También funciona como rompevientos y como percha para aves que comen plagas. Su silueta es la imagen más reconocible de los canales de Xochimilco.',
         hist: ['Salix bonplandiana es nativo del centro de México y sigue siendo el árbol tradicional de los bordes de chinampa.'],
       },
       en: {
         name: 'Ahuejote (willow)',
-        gloss: '“Water willow” (a- water + wexotl willow)',
+        gloss: '“Water willow” (a- water + uexotl willow)',
         fn: 'Living stakes: the roots bind the edges of the chinampa to the lake bed and stop erosion.',
         desc: 'The ahuejote (Salix bonplandiana) grows tall and narrow, so it casts little shade on the crops. It also works as a windbreak and as a perch for birds that eat pests. Its silhouette is the most recognisable image of the Xochimilco canals.',
         hist: ['Salix bonplandiana is native to central Mexico and is still the traditional border tree of the chinampas.'],
       },
       zh: {
         name: '阿韦霍特柳',
-        gloss: '“水柳”（a- 水 + wexotl 柳树）',
+        gloss: '“水柳”（a- 水 + uexotl 柳树）',
         fn: '活的木桩：根系把奇南帕的边缘牢牢固定在湖底，防止侵蚀。',
         desc: '阿韦霍特柳（Salix bonplandiana）高而窄，几乎不遮挡作物的阳光。它还能防风，并为捕食害虫的鸟类提供栖息处。它的剪影是霍奇米尔科运河最具代表性的景象。',
         hist: ['这种柳树原产于墨西哥中部，至今仍是奇南帕边缘的传统树种。'],
@@ -415,21 +415,21 @@ export const ELEMENTS = {
         name: 'Calabaza',
         gloss: 'Calabaza',
         fn: 'Cubre el suelo: sus hojas anchas dan sombra, guardan humedad y frenan las hierbas.',
-        desc: 'Es la tercera hermana de la milpa. Se comía la pulpa, las semillas (ayojwachtli) y las flores.',
+        desc: 'Es la tercera hermana de la milpa. Se comía la pulpa, las semillas (ayojuachtli) y las flores.',
         hist: ['La calabaza es de las primeras plantas domesticadas en Mesoamérica. El Códice Florentino describe varios tipos.'],
       },
       en: {
         name: 'Squash',
         gloss: 'Squash, pumpkin',
         fn: 'Ground cover: its broad leaves shade the soil, hold moisture and suppress weeds.',
-        desc: 'Squash is the third sister of the milpa. People ate the flesh, the seeds (ayojwachtli) and the flowers.',
+        desc: 'Squash is the third sister of the milpa. People ate the flesh, the seeds (ayojuachtli) and the flowers.',
         hist: ['Squash is among the earliest domesticated plants of Mesoamerica. The Florentine Codex lists several kinds.'],
       },
       zh: {
         name: '南瓜',
         gloss: '南瓜',
         fn: '地面覆盖：宽大的叶片为土壤遮阴、保湿并抑制杂草。',
-        desc: '南瓜是米尔帕的第三位“姐妹”。人们食用它的果肉、种子（ayojwachtli）和花。',
+        desc: '南瓜是米尔帕的第三位“姐妹”。人们食用它的果肉、种子（ayojuachtli）和花。',
         hist: ['南瓜是中美洲最早被驯化的植物之一，《佛罗伦萨手抄本》记载了多个品种。'],
       },
     },
@@ -498,7 +498,7 @@ export const ELEMENTS = {
   amaranth: {
     view: 'chinampa',
     group: 'crops',
-    nahuatl: 'wawtli',
+    nahuatl: 'uautli',
     classical: 'huauhtli',
     t: {
       es: {
@@ -537,7 +537,7 @@ export const ELEMENTS = {
   cempasuchil: {
     view: 'chinampa',
     group: 'crops',
-    nahuatl: 'sempowalxochitl',
+    nahuatl: 'sempoualxochitl',
     classical: 'cempōhualxōchitl',
     t: {
       es: {
@@ -628,7 +628,7 @@ export const ELEMENTS = {
   farmer: {
     view: 'chinampa',
     group: 'life',
-    nahuatl: 'tlalchiwki',
+    nahuatl: 'tlalchiuki',
     classical: 'tlālchīuhqui',
     t: {
       es: {
@@ -658,7 +658,7 @@ export const ELEMENTS = {
   coa: {
     view: 'chinampa',
     group: 'life',
-    nahuatl: 'wiktli',
+    nahuatl: 'uiktli',
     classical: 'huictli',
     t: {
       es: {
@@ -886,7 +886,7 @@ export const ELEMENTS = {
   temploMayor: {
     view: 'city',
     group: 'city',
-    nahuatl: 'Weyi Teokalli',
+    nahuatl: 'Ueyi Teokalli',
     classical: 'Huēyi Teōcalli',
     t: {
       es: {
@@ -1037,12 +1037,12 @@ export const ELEMENTS = {
 // Layers used by the exploded and axonometric views (bottom → top).
 export const LAYERS = [
   { key: 'bed', id: 'canal', nahuatl: 'atl', name: { es: 'Fondo del lago y agua', en: 'Lake bed & water', zh: '湖底与水' } },
-  { key: 'frame', id: 'stakes', nahuatl: 'kwawitl · chinamitl', name: { es: 'Estacas y cerco', en: 'Stakes & reed fence', zh: '木桩与芦苇篱' } },
+  { key: 'frame', id: 'stakes', nahuatl: 'kuauitl · chinamitl', name: { es: 'Estacas y cerco', en: 'Stakes & reed fence', zh: '木桩与芦苇篱' } },
   { key: 'mat1', id: 'reedMat', nahuatl: 'tolin', name: { es: 'Capa de tule', en: 'Vegetation mat', zh: '水生植物层' } },
   { key: 'mud1', id: 'mud', nahuatl: 'sokitl', name: { es: 'Lodo', en: 'Lake mud', zh: '淤泥' } },
   { key: 'mat2', id: 'reedMat', nahuatl: 'tolin', name: { es: 'Capa de tule', en: 'Vegetation mat', zh: '水生植物层' } },
   { key: 'mud2', id: 'mud', nahuatl: 'sokitl', name: { es: 'Lodo', en: 'Lake mud', zh: '淤泥' } },
   { key: 'soil', id: 'topsoil', nahuatl: 'tlalli', name: { es: 'Tierra y composta', en: 'Topsoil & compost', zh: '表土与堆肥' } },
   { key: 'crops', id: 'maize', nahuatl: 'xinachtli · milli', name: { es: 'Almácigo y cultivos', en: 'Seedbed & crops', zh: '苗床与作物' } },
-  { key: 'life', id: 'ahuejote', nahuatl: 'awexotl · kalli', name: { es: 'Ahuejotes y casa', en: 'Willows & house', zh: '柳树与农舍' } },
+  { key: 'life', id: 'ahuejote', nahuatl: 'auexotl · kalli', name: { es: 'Ahuejotes y casa', en: 'Willows & house', zh: '柳树与农舍' } },
 ];
