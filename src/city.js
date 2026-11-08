@@ -1,9 +1,37 @@
 import * as THREE from 'three';
-import { rng, mat, mesh, box, cyl, cone, jitter, tag, mountainRing, waterSurface } from './lowpoly.js';
+import { rng, mat, mesh, box, cyl, cone, jitter, tag, mountainRing, waterSurface, peakGeometry } from './lowpoly.js';
+import { touchesWater } from './water.js';
+import { buildTemploMayor, buildEhecatl, buildTlachtli, buildTzompantli, buildTecpan, buildTianquiztli } from './buildings.js';
 
 // Island ellipse (scene units ≈ 10 m).
 export const ISLAND = { rx: 78, rz: 68 };
 export const FOCUS_CELL = { x: 32, z: 24 };
+
+// Name labels on the Tenochtitlan map: [element id, x, y, z, max camera distance to show].
+export const CITY_LABELS = [
+  ['temploMayor', 6, 16, -1, 360],
+  ['ehecatl', -11.5, 8, -1, 140],
+  ['tlachtli', -6, 4, 10.5, 140],
+  ['tzompantli', -6, 4.5, -11, 140],
+  ['tecpan', 3, 6, 28, 280],
+  ['tianquiztli', -10, 4, -50, 300],
+  ['tlatelolco', 9, 10, -50, 380],
+  ['causeway', 5, 2, 120, 520],
+  ['aqueduct', -170, 7, -20, 520],
+  ['albarradon', 105, 4, 10, 520],
+  ['algae', 185, 2, -40, 600],
+  ['tepeyac', -14, 30, -292, 900],
+  ['estrella', 62, 32, 282, 900],
+  ['volcanoes', 300, 160, 375, 2000],
+  ['focusMarker', 0, 0, 0, 0],
+];
+
+// Areas kept free of chinampa blocks: ceremonial precinct, palace, Tlatelolco.
+const EXCLUDE = [
+  [-16, -16, 16, 16],
+  [-6, 21, 12, 35],
+  [-21, -60, 17, -40],
+];
 
 export function insideIsland(x, z, pad = 0) {
   return (x / (ISLAND.rx + pad)) ** 2 + (z / (ISLAND.rz + pad)) ** 2 < 1;
@@ -14,10 +42,22 @@ export function buildCity() {
   const r = rng(2024);
 
   /* ── Water, lake bed, shore, mountains ─────────────────────── */
-  const bed = mesh(new THREE.PlaneGeometry(900, 900).rotateX(-Math.PI / 2), mat('#2c5a5e'), { cast: false });
-  bed.position.y = -3;
+  // Lake bed: shallow around the island and the shore, deeper in open water.
+  const bedGeo = new THREE.PlaneGeometry(900, 900, 120, 120).rotateX(-Math.PI / 2);
+  const bp = bedGeo.attributes.position;
+  for (let i = 0; i < bp.count; i++) {
+    const x = bp.getX(i),
+      z = bp.getZ(i);
+    const island = Math.sqrt((x / ISLAND.rx) ** 2 + (z / ISLAND.rz) ** 2); // 1 at the island edge
+    const rr = Math.hypot(x, z);
+    const off = THREE.MathUtils.smoothstep(island, 1.0, 1.9); // leaving the island
+    const shore = THREE.MathUtils.smoothstep(rr, 175, 252); // approaching the mainland
+    bp.setY(i, THREE.MathUtils.lerp(-1.4, -6.5, off) * (1 - shore) + -0.5 * shore);
+  }
+  bedGeo.computeVertexNormals();
+  const bed = mesh(bedGeo, mat('#2c5a5e'), { cast: false });
   root.add(bed);
-  const water = waterSurface(900, 70, '#46a2b0', 0.86);
+  const water = waterSurface(900, 70, { depthRange: 4.5, foamWidth: 0.2, foamScale: 0.9, deep: '#0d3550' });
   tag(water, 'cityWater');
   root.add(water);
 
@@ -30,17 +70,18 @@ export function buildCity() {
 
   // Popocatépetl & Iztaccíhuatl on the south-east horizon.
   const volc = new THREE.Group();
-  const popo = mesh(jitter(new THREE.ConeGeometry(95, 150, 8, 3), 8, 4, { keepBottom: true }), mat('#7d8a87'), { cast: false });
+  const popo = mesh(jitter(peakGeometry(95, 150, 8, 3), 8, 4, { keepBottom: true }), mat('#7d8a87'), { cast: false });
   popo.position.set(330, 74, 360);
   const snow = mesh(new THREE.ConeGeometry(30, 46, 8), mat('#f4f1ea'), { cast: false });
   snow.position.set(330, 128, 360);
-  const izta = mesh(jitter(new THREE.ConeGeometry(110, 115, 7, 3), 8, 6, { keepBottom: true }), mat('#86918c'), { cast: false });
+  const izta = mesh(jitter(peakGeometry(110, 115, 7, 3), 8, 6, { keepBottom: true }), mat('#86918c'), { cast: false });
   izta.scale.set(1.8, 1, 0.8);
   izta.position.set(190, 56, 410);
   const snow2 = mesh(new THREE.ConeGeometry(70, 30, 7), mat('#f4f1ea'), { cast: false });
   snow2.scale.set(1.8, 1, 0.6);
   snow2.position.set(190, 100, 410);
   volc.add(popo, snow, izta, snow2);
+  tag(volc, 'volcanoes');
   root.add(volc);
 
   /* ── Chinampa grid ─────────────────────────────────────────── */
@@ -50,7 +91,7 @@ export function buildCity() {
     for (let cz = -68; cz <= 68; cz += CELL) {
       const wob = Math.sin(cx * 0.08) * 4 + Math.cos(cz * 0.07) * 4;
       if (!insideIsland(cx, cz, wob - 4)) continue;
-      if (Math.abs(cx) < 18 && Math.abs(cz) < 18) continue; // ceremonial precinct
+      if (EXCLUDE.some(([x0, z0, x1, z1]) => cx + 4 > x0 && cx - 4 < x1 && cz + 4 > z0 && cz - 4 < z1)) continue;
       cells.push([cx, cz]);
     }
 
@@ -161,11 +202,13 @@ export function buildCity() {
   stem.position.y = -6;
   pin.add(gem, stem);
   pin.position.set(focus.x, 13, focus.z);
+  const fl = CITY_LABELS.find((l) => l[0] === 'focusMarker');
+  fl.splice(1, 4, focus.x, 19, focus.z, 420);
   fGroup.add(fStrip, pin);
   tag(fGroup, 'focusMarker');
   root.add(fGroup);
 
-  /* ── Ceremonial precinct & Templo Mayor ────────────────────── */
+  /* ── Ceremonial precinct (low-poly models shared with the Buildings view) ── */
   const precinct = new THREE.Group();
   const plaza = box(34, 0.8, 34, '#e8e0cc');
   plaza.position.y = 0.2;
@@ -175,48 +218,34 @@ export function buildCity() {
     wall.position.set(x, 1.2, z);
     precinct.add(wall);
   }
-  const tm = new THREE.Group();
-  for (let s = 0; s < 4; s++) {
-    const size = 13 - s * 2.4;
-    const tier = box(size, 2.2, size, s % 2 ? '#e2d7bd' : '#eadfc6');
-    tier.position.y = 1.7 + s * 2.2;
-    tm.add(tier);
-  }
-  for (const zz of [-1.7, 1.7]) {
-    const stair = box(5, 0.4, 2.2, '#cfc2a3');
-    stair.position.set(-6.2, 5.0, zz);
-    stair.rotation.z = -0.95;
-    stair.scale.x = 2.2;
-    tm.add(stair);
-  }
-  const tlaloc = box(2.6, 2.4, 2.4, '#3f7fb5');
-  tlaloc.position.set(0.5, 11.6, -1.7);
-  const huitz = box(2.6, 2.4, 2.4, '#b5403a');
-  huitz.position.set(0.5, 11.6, 1.7);
-  const tr1 = cone(1.9, 1.6, '#2e5f8a', 4);
-  tr1.rotation.y = Math.PI / 4;
-  tr1.position.set(0.5, 13.6, -1.7);
-  const tr2 = cone(1.9, 1.6, '#8a2e2a', 4);
-  tr2.rotation.y = Math.PI / 4;
-  tr2.position.set(0.5, 13.6, 1.7);
-  tm.add(tlaloc, huitz, tr1, tr2);
-  tm.position.set(4, 0, -2);
-  precinct.add(tm);
-  // Round temple of Ehecatl and smaller shrines.
-  const eh = cyl(2.2, 2.6, 3, '#e6dcc4', 10);
-  eh.position.set(-8, 2, -2);
-  const ehRoof = cone(2.4, 2.4, '#c9a456', 10);
-  ehRoof.position.set(-8, 4.7, -2);
-  precinct.add(eh, ehRoof);
-  for (const [x, z] of [[-9, 9], [-9, -11], [10, 11]]) {
-    const p = box(4, 2.5, 4, '#e2d7bd');
-    p.position.set(x, 1.6, z);
-    const sh = box(1.4, 1.2, 1.4, '#b5503a');
-    sh.position.set(x, 3.4, z);
-    precinct.add(p, sh);
-  }
   tag(precinct, 'temploMayor');
   root.add(precinct);
+  const place = (obj, x, z, scale, rotY = 0, y = 0.6) => {
+    obj.scale.setScalar(scale);
+    obj.position.set(x, y, z);
+    obj.rotation.y = rotY;
+    root.add(obj);
+    return obj;
+  };
+  place(buildTemploMayor(), 6, -1, 0.72);
+  place(buildEhecatl(), -11.5, -1, 0.55);
+  place(buildTlachtli(), -6, 10.5, 0.45);
+  place(buildTzompantli(), -6, -11, 0.5);
+
+  /* ── Palace of Moctezuma, south of the precinct ── */
+  const tecpanPad = box(17, 0.6, 13, '#d9ccb0');
+  tecpanPad.position.set(3, 0.1, 28);
+  tag(tecpanPad, 'tecpan');
+  root.add(tecpanPad);
+  place(buildTecpan(), 3, 28, 0.7, 0, 0.4);
+
+  /* ── Tlatelolco: twin city with its temple and the great market ── */
+  const tlaPad = box(36, 0.6, 18, '#e3d6bb');
+  tlaPad.position.set(-2, 0.1, -50);
+  tag(tlaPad, 'tlatelolco');
+  root.add(tlaPad);
+  place(buildTianquiztli(), -10, -50, 0.7, 0, 0.4);
+  place(buildTemploMayor({ id: 'tlatelolco' }), 9, -50, 0.5, 0, 0.4);
 
   /* ── Causeways, aqueduct, dike ─────────────────────────────── */
   const causeways = new THREE.Group();
@@ -233,7 +262,7 @@ export function buildCity() {
   const aqueduct = new THREE.Group();
   addPath(aqueduct, [[-262, -46], [-160, -16], [-80, -6]], 1.2, 4.8, '#a89676');
   addPath(aqueduct, [[-262, -46], [-160, -16], [-80, -6]], 0.5, 0.3, '#58b3c4', 4.6);
-  const chapul = mesh(jitter(new THREE.ConeGeometry(26, 22, 7, 2), 3, 12, { keepBottom: true }), mat('#6f8a4a'));
+  const chapul = mesh(jitter(peakGeometry(26, 22, 7, 2), 3, 12, { keepBottom: true }), mat('#6f8a4a'));
   chapul.position.set(-275, 10, -52);
   aqueduct.add(chapul);
   tag(aqueduct, 'aqueduct');
@@ -243,6 +272,29 @@ export function buildCity() {
   addPath(dike, [[128, -262], [104, -90], [108, 80], [140, 262]], 1.8, 1.8, '#7d6d58');
   tag(dike, 'albarradon');
   root.add(dike);
+
+  /* ── Hills and lake life ── */
+  const hill = (x, z, rad, h, color, id, seed) => {
+    const m = mesh(jitter(peakGeometry(rad, h, 7, 2), rad * 0.12, seed, { keepBottom: true }), mat(color));
+    m.position.set(x, h / 2 - 0.5, z);
+    tag(m, id);
+    root.add(m);
+    return m;
+  };
+  hill(-14, -292, 24, 26, '#7d8f5a', 'tepeyac', 21);
+  hill(62, 282, 30, 30, '#879461', 'estrella', 22);
+  // Spirulina (tecuitlatl) blooms in the brackish water east of the dike.
+  const algae = new THREE.Group();
+  const algaeMat = new THREE.MeshStandardMaterial({ color: '#4f8f45', flatShading: true, transparent: true, opacity: 0.85, roughness: 0.9 });
+  for (let k = 0; k < 16; k++) {
+    const rad = 6 + r() * 10;
+    const patch = new THREE.Mesh(jitter(new THREE.CircleGeometry(rad, 7).rotateX(-Math.PI / 2), rad * 0.25, 30 + k), algaeMat);
+    patch.position.set(140 + r() * 90, 0.22, -170 + r() * 300);
+    patch.receiveShadow = true;
+    algae.add(patch);
+  }
+  tag(algae, 'algae');
+  root.add(algae);
 
   // A few canoes in the main canals and on the lake.
   const canoes = new THREE.Group();
@@ -259,7 +311,9 @@ export function buildCity() {
   tag(canoes, 'lake');
   root.add(canoes);
 
-  return { root, water, pin, canoes };
+  // Everything in the city (mostly instanced, so cheap) contributes to the water's depth/foam.
+  touchesWater(root);
+  return { root, water, pin, canoes, labels: CITY_LABELS };
 }
 
 function addPath(group, pts, width, height, color, raise = 0) {

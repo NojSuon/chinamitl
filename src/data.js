@@ -4,6 +4,10 @@
 // `classical` keeps the colonial-era spelling (with vowel length) for comparison.
 // Words in Nahuatl and cultural data should be validated with speakers before publishing.
 
+import { LAKE_ELEMENTS } from './data-lake.js';
+import { BUILDING_ELEMENTS } from './data-buildings.js';
+export { BUILDINGS } from './data-buildings.js';
+
 export const ELEMENTS = {
   /* ───────────────────────── Overview ───────────────────────── */
   chinampa: {
@@ -16,7 +20,7 @@ export const ELEMENTS = {
         name: 'Chinampa',
         gloss: '«Cerco de cañas» · chinampan = «sobre el cerco de cañas»',
         fn: 'Un campo elevado y rectangular construido en los lagos poco profundos de la Cuenca de México. Se riega desde abajo y se abona con lodo de los canales, así que se puede cultivar todo el año.',
-        desc: 'Primero se marcaba el terreno con estacas de madera y un cerco de carrizo tejido. Después se rellenaba con capas de vegetación acuática y lodo del fondo del lago, hasta que la superficie quedaba sobre el agua. Los ahuejotes sujetaban las orillas. Los canales servían para moverse en canoa, pescar, regar y abonar. Las chinampas están ancladas al fondo: no flotan, aunque se les llame «jardines flotantes».',
+        desc: 'Primero se marcaba el terreno con estacas de madera y un borde de troncos, cortezas o carrizo. Después se rellenaba con capas de vegetación acuática y lodo del fondo del lago, hasta que la superficie quedaba sobre el agua. Los ahuejotes sujetaban las orillas. Los canales servían para moverse en canoa, pescar, regar y abonar. Las chinampas están ancladas al fondo: no flotan, aunque se les llame «jardines flotantes».',
         hist: [
           'La agricultura de chinampas en los lagos del sur (Xochimilco–Chalco) suele fecharse en el Posclásico. Los mexicas la ampliaron a gran escala en el siglo XV.',
           'Pedro Armillas, «Gardens on Swamps» (Science, 1971), usó fotografía aérea para mapear la enorme extensión de las chinampas antiguas.',
@@ -28,7 +32,7 @@ export const ELEMENTS = {
         name: 'Chinampa',
         gloss: '“Reed or cane enclosure” · chinampan = “on the cane fence”',
         fn: 'A raised, rectangular field built in the shallow lakes of the Basin of Mexico. It is watered from below and fertilised with mud from the canals, so it can be farmed all year.',
-        desc: 'Farmers marked out a plot with wooden stakes and a woven reed fence. They filled it with layers of aquatic vegetation and lake-bottom mud until it rose above the water. Willow trees anchored the edges. The canals were used for canoe transport, fishing, irrigation and fertiliser. Chinampas are anchored to the lake bed. They do not float, even though they are often called “floating gardens”.',
+        desc: 'Farmers marked out a plot with wooden stakes and an edge of logs, bark or reeds. They filled it with layers of aquatic vegetation and lake-bottom mud until it rose above the water. Willow trees anchored the edges. The canals were used for canoe transport, fishing, irrigation and fertiliser. Chinampas are anchored to the lake bed. They do not float, even though they are often called “floating gardens”.',
         hist: [
           'Chinampa farming in the southern lakes (Xochimilco–Chalco) is generally dated to the Postclassic period. The Mexica expanded it on a large scale in the 15th century.',
           'Pedro Armillas’ “Gardens on Swamps” (Science, 1971) used aerial photographs to map the huge extent of ancient chinampa fields.',
@@ -40,7 +44,7 @@ export const ELEMENTS = {
         name: '奇南帕（湖田）',
         gloss: '“芦苇围栏” · chinampan = “在芦苇围栏之上”',
         fn: '建在墨西哥盆地浅湖中的长方形高田。水分从下方渗入，用运河淤泥施肥，因此全年都可以耕种。',
-        desc: '农民先用木桩和编织的芦苇围栏圈出地块，再层层填入水生植物和湖底淤泥，直到田面高出水面。岸边种植的柳树起固定作用。田间的运河用于划船运输、捕鱼、灌溉和取肥。奇南帕固定在湖底，并不会漂浮，尽管常被称为“浮动园地”。',
+        desc: '农民先用木桩和原木、树皮或芦苇围护圈出地块，再层层填入水生植物和湖底淤泥，直到田面高出水面。岸边种植的柳树起固定作用。田间的运河用于划船运输、捕鱼、灌溉和取肥。奇南帕固定在湖底，并不会漂浮，尽管常被称为“浮动园地”。',
         hist: [
           '南部湖区（霍奇米尔科—查尔科）的奇南帕农业一般被认为始于后古典期。15世纪时，墨西加人大规模扩建了奇南帕。',
           '佩德罗·阿米利亚斯在《沼泽上的园地》（《科学》，1971）中用航拍照片绘制了古代奇南帕的巨大范围。',
@@ -96,21 +100,21 @@ export const ELEMENTS = {
         name: 'Estacas de madera',
         gloss: 'Árbol, madera, palo',
         fn: 'Marcan el contorno y sostienen el relleno. Se clavan en el fondo del lago y forman el esqueleto de la chinampa.',
-        desc: 'Se hincaban postes en el fondo blando alrededor del rectángulo y se tejía carrizo entre ellos. Así las capas de vegetación y lodo se mantenían en su lugar mientras se asentaban. Con el tiempo, las raíces de los ahuejotes hacían buena parte de este trabajo.',
+        desc: 'Se hincaban postes en el fondo blando alrededor del rectángulo y detrás de ellos se apilaban troncos y cortezas. Así las capas de vegetación y lodo se mantenían en su lugar mientras se asentaban. Con el tiempo, las raíces de los ahuejotes hacían buena parte de este trabajo.',
         hist: ['En excavaciones en Xochimilco y el sur de la cuenca se han registrado hileras de postes en antiguos bordes de chinampa.'],
       },
       en: {
         name: 'Wooden stakes',
         gloss: 'Tree, wood, stick',
         fn: 'They outline the plot and hold the fill in place. They are driven into the lake bottom to form the skeleton of the chinampa.',
-        desc: 'Posts were driven into the soft lake bed around the rectangle, and reeds were woven between them. This held the layers of vegetation and mud in place while they settled. Over time, the roots of the willows took over much of this job.',
+        desc: 'Posts were driven into the soft lake bed around the rectangle, and logs and bark were stacked behind them. This held the layers of vegetation and mud in place while they settled. Over time, the roots of the willows took over much of this job.',
         hist: ['Excavations in Xochimilco and the southern basin have recorded rows of posts along old chinampa edges.'],
       },
       zh: {
         name: '木桩',
         gloss: '树、木头、木棍',
         fn: '木桩勾勒出地块轮廓并固定填料。它们被打入湖底，构成奇南帕的骨架。',
-        desc: '人们沿长方形四周把木桩打进松软的湖底，再在木桩之间编织芦苇。这样，植物和淤泥层在沉降过程中就能保持原位。日后，柳树的根系会逐渐承担这一作用。',
+        desc: '人们沿长方形四周把木桩打进松软的湖底，再在木桩后面堆叠原木和树皮。这样，植物和淤泥层在沉降过程中就能保持原位。日后，柳树的根系会逐渐承担这一作用。',
         hist: ['在霍奇米尔科和盆地南部的发掘中，沿古代奇南帕边缘发现了成排的木桩。'],
       },
     },
@@ -119,29 +123,38 @@ export const ELEMENTS = {
   wattle: {
     view: 'chinampa',
     group: 'structure',
-    nahuatl: 'chinamitl',
-    classical: 'chināmitl',
+    nahuatl: 'kuauitl · chinamitl',
+    classical: 'cuahuitl · chināmitl',
     t: {
       es: {
-        name: 'Cerco de carrizo',
-        gloss: 'Cerca o seto hecho de cañas',
-        fn: 'Un cerco tejido entre las estacas que evita que el lodo y la vegetación se deslaven hacia el canal.',
-        desc: 'Este cerco le da nombre a toda la técnica. Chinampa viene de chinamitl («cerco de cañas») y el locativo -pan («sobre, en»): el campo es, literalmente, «el lugar sobre el cerco de cañas». Se reparaba seguido, porque el carrizo se pudre y hay que reemplazarlo.',
-        hist: ['El Vocabulario de Molina (1571) registra chinamitl como «seto o cerca de cañas».'],
+        name: 'Borde de troncos y cortezas',
+        gloss: 'Madera, tronco · «cerco de cañas», origen de la palabra chinampa',
+        fn: 'Forma la pared de la orilla: troncos y cortezas de árbol apilados detrás de las estacas detienen la tierra y el lodo para que no se deslaven al canal.',
+        desc: 'Los chinamperos revisten la orilla con troncos, ramas y cortezas, sujetos por estacas clavadas en el fondo. Con el tiempo se pudren y se reponen, y las raíces de los ahuejotes van ocupando su lugar. El nombre de la técnica viene de un cerco así: chinamitl («cerco de cañas») más el locativo -pan, «sobre el cerco».',
+        hist: [
+          'El Vocabulario de Molina (1571) registra chinamitl como «seto o cerca de cañas».',
+          'En Xochimilco y San Gregorio Atlapulco las orillas se siguen reforzando con troncos, tablas, cortezas y estacas.',
+        ],
       },
       en: {
-        name: 'Reed fence (wattle)',
-        gloss: 'Enclosure or fence made of canes',
-        fn: 'A woven reed fence between the stakes that keeps mud and plant material from washing into the canal.',
-        desc: 'This fence gives the whole technique its name. Chinampa comes from chinamitl (“cane fence”) plus the locative -pan (“on, at”), so the field is literally “the place on the cane enclosure”. The fence was repaired often, as the reeds rotted and had to be replaced.',
-        hist: ['Molina’s Vocabulario (1571) lists chinamitl as “seto o cerca de cañas” (a hedge or fence of canes).'],
+        name: 'Log and bark edging',
+        gloss: 'Wood, log · “cane fence”, the origin of the word chinampa',
+        fn: 'Forms the edge wall: logs and tree bark stacked behind the stakes hold back the soil and mud so they do not wash into the canal.',
+        desc: 'Chinamperos line the edge with logs, branches and bark, held in place by stakes driven into the lake bed. Over time they rot and are replaced, while the roots of the ahuejote willows take over. The technique is named after such an enclosure: chinamitl (“cane fence”) plus the locative -pan, “on the fence”.',
+        hist: [
+          'Molina’s Vocabulario (1571) lists chinamitl as “seto o cerca de cañas” (a hedge or fence of canes).',
+          'In Xochimilco and San Gregorio Atlapulco, edges are still reinforced with logs, planks, bark and stakes.',
+        ],
       },
       zh: {
-        name: '芦苇编篱',
-        gloss: '用芦苇或藤条编成的围栏',
-        fn: '编织在木桩之间的芦苇篱笆，防止淤泥和植物材料被冲入运河。',
-        desc: '整个技术的名称就来自这道篱笆。chinampa 由 chinamitl（“芦苇围栏”）加上方位后缀 -pan（“在……之上”）构成，字面意思是“在芦苇围栏之上的地方”。芦苇会腐烂，所以篱笆需要经常修补更换。',
-        hist: ['莫利纳的《词汇》（1571）将 chinamitl 释为“芦苇做的篱笆或围栏”。'],
+        name: '原木与树皮护岸',
+        gloss: '木头、原木 · “芦苇围栏”，即 chinampa 一词的来源',
+        fn: '构成田块边墙：堆叠在木桩后面的原木和树皮挡住泥土和淤泥，防止它们被冲进运河。',
+        desc: '奇南帕农民用原木、树枝和树皮砌护田边，再用打入湖底的木桩固定。它们会逐渐腐烂并被更换，而阿韦霍特柳的根系则慢慢接替其作用。这项技术的名称就来自这样的围护：chinamitl（“芦苇围栏”）加上方位后缀 -pan，意为“在围栏之上”。',
+        hist: [
+          '莫利纳的《词汇》（1571）将 chinamitl 释为“芦苇做的篱笆或围栏”。',
+          '在霍奇米尔科和圣格雷戈里奥阿特拉普尔科，人们至今仍用原木、木板、树皮和木桩加固田边。',
+        ],
       },
     },
   },
@@ -884,8 +897,8 @@ export const ELEMENTS = {
   },
 
   temploMayor: {
-    view: 'city',
-    group: 'city',
+    view: ['city', 'buildings'],
+    group: 'buildings',
     nahuatl: 'Ueyi Teokalli',
     classical: 'Huēyi Teōcalli',
     t: {
@@ -1034,10 +1047,12 @@ export const ELEMENTS = {
   },
 };
 
+Object.assign(ELEMENTS, LAKE_ELEMENTS, BUILDING_ELEMENTS);
+
 // Layers used by the exploded and axonometric views (bottom → top).
 export const LAYERS = [
   { key: 'bed', id: 'canal', nahuatl: 'atl', name: { es: 'Fondo del lago y agua', en: 'Lake bed & water', zh: '湖底与水' } },
-  { key: 'frame', id: 'stakes', nahuatl: 'kuauitl · chinamitl', name: { es: 'Estacas y cerco', en: 'Stakes & reed fence', zh: '木桩与芦苇篱' } },
+  { key: 'frame', id: 'stakes', nahuatl: 'kuauitl · chinamitl', name: { es: 'Estacas y troncos', en: 'Stakes & log edging', zh: '木桩与原木护岸' } },
   { key: 'mat1', id: 'reedMat', nahuatl: 'tolin', name: { es: 'Capa de tule', en: 'Vegetation mat', zh: '水生植物层' } },
   { key: 'mud1', id: 'mud', nahuatl: 'sokitl', name: { es: 'Lodo', en: 'Lake mud', zh: '淤泥' } },
   { key: 'mat2', id: 'reedMat', nahuatl: 'tolin', name: { es: 'Capa de tule', en: 'Vegetation mat', zh: '水生植物层' } },

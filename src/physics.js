@@ -110,6 +110,12 @@ export class MotionPhysics {
   }
 }
 
+// Height of the chinampa-view water at (x, z), matching updateWater(), so floating things bob with it.
+export function waveHeight(x, z, time, physics, amp = 0.05) {
+  const e = 1 + physics.energy * 1.8;
+  return amp * e * (Math.sin(x * 0.35 + time * 1.2) + 0.8 * Math.sin(z * 0.42 - time * 0.9) + 0.3 * Math.sin((x + z) * 0.9 + time * 2.2));
+}
+
 // Animate a low-poly water plane created with waterSurface().
 export function updateWater(water, time, physics, { amp = 0.06, scale = 1, sloshAmp = 0.05, falloff = 30 } = {}) {
   const pos = water.geometry.attributes.position;

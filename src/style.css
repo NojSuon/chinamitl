@@ -205,6 +205,35 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--glicina); o
 #layerName { min-width: 200px; text-align: center; font-family: var(--font-title); font-weight: 600; color: var(--berenjena); }
 body:not([data-mode='chinampa']) .only-chinampa { display: none; }
 body:not([data-mode='axo']) .only-axo { display: none; }
+body:not([data-mode='buildings']) .only-buildings { display: none; }
+body[data-mode='buildings'] { background: var(--sky-axo); }
+body[data-mode='buildings'] .toggle:has(#autoRotate) { display: none; }
+#bldName { min-width: 200px; text-align: center; font-family: var(--font-title); font-weight: 600; color: var(--berenjena); }
+
+/* ── Tenochtitlan map labels ── */
+.map-labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+/* Panels and bars sit above the 3D labels. */
+.topbar, .legend, .info, .toolbar { z-index: 3; }
+.map-label {
+  position: absolute; transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer; white-space: nowrap;
+  font-family: var(--font-title); font-weight: 600; font-size: 13px; color: var(--berenjena);
+  background: rgba(255, 249, 245, 0.92); border: 1px solid var(--line); border-radius: var(--r-tag); padding: 3px 9px 4px;
+  box-shadow: 0 4px 12px rgba(43, 29, 26, 0.15); transition: opacity 0.2s;
+}
+.map-label::after {
+  content: ''; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%);
+  border: 6px solid transparent; border-bottom: 0; border-top-color: rgba(255, 249, 245, 0.92);
+}
+.map-label i { font-style: normal; color: var(--petroleo); margin-left: 6px; font-size: 12px; }
+.map-label:hover, .map-label.active { background: var(--berenjena); color: #fff; }
+.map-label:hover i, .map-label.active i { color: var(--espuma); }
+.map-label:hover::after, .map-label.active::after { border-top-color: var(--berenjena); }
+.map-label.hidden { opacity: 0; pointer-events: none; }
+
+/* ── Leader lines for building part labels ── */
+.label-lines { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.label-lines line { stroke: var(--berenjena); stroke-width: 1.5; }
+.label-lines circle { fill: var(--berenjena); }
 body[data-mode='axo'] .toggle:has(#autoRotate) { display: none; }
 
 /* ── Tooltip & hint ── */

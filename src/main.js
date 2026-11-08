@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { ELEMENTS, LAYERS } from './data.js';
+import { ELEMENTS, LAYERS, BUILDINGS } from './data.js';
+import { BUILDERS } from './buildings.js';
 import { UI, LANGS } from './i18n.js';
 import { buildChinampa, W, L, BED, TOP } from './chinampa.js';
 import { buildCity, insideIsland } from './city.js';
-import { MotionPhysics, updateWater } from './physics.js';
+import { MotionPhysics, updateWater, waveHeight } from './physics.js';
+import { WaterDepth } from './water.js';
 
 /* ───────────────────────── Renderer & scene ───────────────────────── */
 // Phones and portrait tablets use the compact layout (matches the 900px CSS breakpoint).
@@ -21,10 +23,12 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
+// Shadows are rendered once per frame for the main pass only (not for the water depth pre-pass).
+renderer.shadowMap.autoUpdate = false;
 
 const scene = new THREE.Scene();
 const FOG = {
-  chinampa: new THREE.Fog('#e3dccb', 80, 240),
+  chinampa: new THREE.Fog('#e3dccb', 90, 300),
   city: new THREE.Fog('#e6dbc8', 300, 950),
 };
 
@@ -44,7 +48,7 @@ function setShadowBounds(s, far) {
   c.updateProjectionMatrix();
 }
 
-const persp = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 3000);
+const persp = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.3, 3000);
 const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -500, 1000);
 let camera = persp;
 let controls = makeControls(persp);
@@ -64,6 +68,28 @@ const chin = buildChinampa();
 const city = buildCity();
 scene.add(chin.root, city.root);
 
+// Buildings view: every model built once with clickable parts, on a paper-coloured plinth.
+const bld = { root: new THREE.Group(), models: {} };
+{
+  const plinth = new THREE.Mesh(
+    new THREE.BoxGeometry(46, 0.6, 40),
+    new THREE.MeshStandardMaterial({ color: '#efe7d8', flatShading: true, roughness: 1 }),
+  );
+  plinth.position.y = -0.3;
+  plinth.receiveShadow = true;
+  bld.root.add(plinth);
+  for (const id of BUILDINGS) {
+    const m = BUILDERS[id]({ parts: true });
+    m.visible = false;
+    bld.models[id] = m;
+    bld.root.add(m);
+  }
+  bld.root.visible = false;
+  scene.add(bld.root);
+}
+// Depth target for the water shader; lower resolution on touch devices.
+const waterDepth = new WaterDepth(renderer, coarse ? 0.5 : 0.75);
+
 const physics = new MotionPhysics();
 const canoeBody = { obj: chin.canoe.group, k: 9, c: 1.4, gain: 1.6, max: 0.28, manual: true };
 const swayBodies = [...chin.sway, canoeBody];
@@ -74,6 +100,15 @@ function prepareHighlight(root) {
   const cache = new Map();
   root.traverse((o) => {
     if (!o.isMesh || !o.userData.id) return;
+    // The water uses a custom shader (onBeforeCompile), which a clone would lose.
+    if (o.material.userData.water) {
+      const id = o.userData.id;
+      o.material.userData.baseEmissive = o.material.emissive.clone();
+      o.material.userData.baseIntensity = o.material.emissiveIntensity;
+      if (!idMats.has(id)) idMats.set(id, new Set());
+      idMats.get(id).add(o.material);
+      return;
+    }
     const id = o.userData.id;
     const key = id + '|' + o.material.uuid;
     if (!cache.has(key)) {
@@ -89,6 +124,7 @@ function prepareHighlight(root) {
 }
 prepareHighlight(chin.root);
 prepareHighlight(city.root);
+prepareHighlight(bld.root);
 
 const NO_HOVER_GLOW = new Set(['canal', 'cityWater', 'lake', 'cityCanal']);
 const glowColor = new THREE.Color('#5fc4c9'); // Turquesa Mar, brightened for emissive glow
@@ -127,6 +163,7 @@ const state = {
   explode: 0,
   axoLevel: LAYERS.length - 1,
   axoAz: Math.PI / 4,
+  building: BUILDINGS[0],
   offsets: LAYERS.map(() => 0),
 };
 const AXO_GAP = 4.6;
@@ -160,23 +197,25 @@ function setMode(mode, { keepSelection = false } = {}) {
   document.querySelectorAll('.modes button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.mode === mode)));
 
   const isAxo = mode === 'axo';
-  chin.root.visible = mode !== 'city';
+  const isBld = mode === 'buildings';
+  const isOrtho = isAxo || isBld;
+  chin.root.visible = mode === 'chinampa' || isAxo;
   city.root.visible = mode === 'city';
+  bld.root.visible = isBld;
   chin.detailOnly.forEach((o) => (o.visible = !isAxo));
   chin.axoOnly.forEach((o) => (o.visible = isAxo));
-  scene.fog = isAxo ? null : FOG[mode];
+  scene.fog = isOrtho ? null : FOG[mode];
 
   // Swap camera type.
-  const wantOrtho = isAxo;
-  if ((camera === ortho) !== wantOrtho) {
+  if ((camera === ortho) !== isOrtho) {
     const target = controls.target.clone();
     controls.dispose();
-    camera = wantOrtho ? ortho : persp;
+    camera = isOrtho ? ortho : persp;
     controls = makeControls(camera);
     controls.target.copy(target);
   }
-  controls.enableRotate = !isAxo;
-  controls.autoRotate = !isAxo && document.getElementById('autoRotate').checked;
+  controls.enableRotate = !isOrtho;
+  controls.autoRotate = !isOrtho && document.getElementById('autoRotate').checked;
   controls.minDistance = mode === 'city' ? 20 : 4;
   controls.maxDistance = mode === 'city' ? 700 : 160;
   controls.maxPolarAngle = mode === 'city' ? Math.PI * 0.47 : Math.PI * 0.62;
@@ -186,9 +225,9 @@ function setMode(mode, { keepSelection = false } = {}) {
     sun.position.set(160, 220, 90);
     physics.setBodies([]);
   } else {
-    setShadowBounds(isAxo ? 45 : 36, 200);
+    setShadowBounds(isAxo ? 45 : isBld ? 30 : 36, 200);
     sun.position.set(30, 45, 18);
-    physics.setBodies(swayBodies);
+    physics.setBodies(isBld ? [] : swayBodies);
   }
 
   if (isAxo) {
@@ -199,21 +238,56 @@ function setMode(mode, { keepSelection = false } = {}) {
     camera.updateProjectionMatrix();
     tween = null;
     physics.reset();
+  } else if (isBld) {
+    layoutOrtho();
+    tween = null;
+    physics.reset();
+    showBuilding(state.building, { select: false });
   } else {
     const v = VIEWS[mode];
-    if (prevMode === 'axo' || prevMode === mode) {
+    if (prevMode === 'axo' || prevMode === 'buildings' || prevMode === mode) {
       camera.position.copy(v.pos).add(new THREE.Vector3(30, 20, 30));
       controls.target.copy(v.target);
     }
     flyTo(v.pos, v.target, 1.4);
   }
   updateAxoUI();
+  buildMapLabels();
+  if (!isBld) buildPartLabels(); // clears the part labels outside the Buildings view
   renderLegend();
   if (!keepSelection) {
     // On phones the info sheet would cover the scene, so only open it on demand.
     if (compact()) select(null);
-    else select(mode === 'city' ? 'cityChinampa' : 'chinampa', { focus: false });
+    else select(isBld ? state.building : mode === 'city' ? 'cityChinampa' : 'chinampa', { focus: false });
   }
+}
+
+/* ───────────────────────── Buildings view ───────────────────────── */
+const bldNameEl = document.getElementById('bldName');
+function showBuilding(id, { select: doSelect = true } = {}) {
+  state.building = id;
+  for (const [k, m] of Object.entries(bld.models)) m.visible = k === id;
+  bldNameEl.textContent = `${BUILDINGS.indexOf(id) + 1}/${BUILDINGS.length} · ${loc(id).name}`;
+  // Frame the model: centre it and zoom so it fills the view.
+  const box = new THREE.Box3().setFromObject(bld.models[id]);
+  const center = box.getCenter(new THREE.Vector3());
+  // Fit by the model's isometric footprint (flat buildings like the ballcourt get closer).
+  const size = box.getSize(new THREE.Vector3());
+  const footW = (size.x + size.z) * 0.71;
+  const footH = size.y * 0.82 + (size.x + size.z) * 0.41;
+  const visW = ortho.right - ortho.left;
+  const visH = ortho.top - ortho.bottom;
+  camera.zoom = Math.min((visW * (compact() ? 0.62 : 0.32)) / footW, (visH * (compact() ? 0.4 : 0.52)) / footH);
+  camera.updateProjectionMatrix();
+  const t = new THREE.Vector3(center.x, center.y * 0.8, center.z);
+  if (state.mode === 'buildings') flyTo(axoCameraPos(state.axoAz, t), t, 0.6);
+  buildPartLabels();
+  if (state.mode === 'buildings') renderLegend();
+  if (doSelect) select(id);
+}
+function stepBuilding(d) {
+  const i = (BUILDINGS.indexOf(state.building) + d + BUILDINGS.length) % BUILDINGS.length;
+  showBuilding(BUILDINGS[i], { select: !compact() });
 }
 
 /* ───────────────────────── Layers (explode / axo) ───────────────────────── */
@@ -238,7 +312,7 @@ function layoutOrtho() {
   const narrow = compact();
   const halfH = narrow ? 40 : 31;
   // Shift the plan left of centre so the layer labels have room beside the info panel.
-  const shift = narrow ? halfH * aspect * 0.42 : halfH * aspect * 0.2;
+  const shift = narrow ? halfH * aspect * 0.42 : halfH * aspect * (state.mode === 'buildings' ? 0.08 : 0.2);
   ortho.left = -halfH * aspect + shift;
   ortho.right = halfH * aspect + shift;
   ortho.top = halfH;
@@ -325,6 +399,120 @@ function positionAxoLabels() {
   }
 }
 
+/* ── Buildings view: part labels with leader lines ── */
+const partLabelsEl = document.createElement('div');
+partLabelsEl.className = 'axo-labels';
+document.body.appendChild(partLabelsEl);
+const lineSvg = document.getElementById('labelLines');
+let partLabels = [];
+function buildPartLabels() {
+  partLabelsEl.innerHTML = '';
+  lineSvg.innerHTML = '';
+  partLabels = [];
+  if (state.mode !== 'buildings') return;
+  const id = state.building;
+  const model = bld.models[id];
+  let ids = Object.keys(ELEMENTS).filter((k) => ELEMENTS[k].building === id);
+  if (!ids.length) ids = [id];
+  else ids = [id, ...ids.filter((k) => k !== id)];
+  model.updateMatrixWorld(true);
+  ids.forEach((pid, i) => {
+    // Anchor: top centre of the part (or the whole model for the building itself).
+    const box = new THREE.Box3();
+    model.traverse((o) => {
+      if (o.isMesh && (pid === id ? true : o.userData.id === pid)) box.expandByObject(o);
+    });
+    if (box.isEmpty()) return;
+    const anchor = pid === id ? new THREE.Vector3((box.min.x + box.max.x) / 2, box.max.y, (box.min.z + box.max.z) / 2) : box.getCenter(new THREE.Vector3());
+    if (pid !== id) anchor.y = Math.max(anchor.y, box.max.y - 0.2);
+    const el = document.createElement('div');
+    el.className = 'axo-label' + (pid === state.selected ? ' current' : '');
+    const num = pid === id ? '' : `<b>${i}</b>`;
+    el.innerHTML = `<span class="txt">${num}${loc(pid).name}<i>${ELEMENTS[pid].nahuatl}</i></span>`;
+    el.addEventListener('click', () => select(pid));
+    partLabelsEl.appendChild(el);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    dot.setAttribute('r', '4');
+    lineSvg.append(line, dot);
+    partLabels.push({ el, pid, anchor, line, dot, box });
+  });
+}
+function positionPartLabels() {
+  if (state.mode !== 'buildings' || !partLabels.length) return;
+  const W2 = window.innerWidth,
+    H2 = window.innerHeight;
+  const toScreen = (p) => {
+    _v.copy(p).project(camera);
+    return [((_v.x + 1) / 2) * W2, ((1 - _v.y) / 2) * H2];
+  };
+  // Column to the right of the model.
+  const mbox = new THREE.Box3().setFromObject(bld.models[state.building]);
+  let maxX = -Infinity;
+  for (const x of [mbox.min.x, mbox.max.x])
+    for (const y of [mbox.min.y, mbox.max.y])
+      for (const z of [mbox.min.z, mbox.max.z]) maxX = Math.max(maxX, toScreen(new THREE.Vector3(x, y, z))[0]);
+  const rightLimit = compact() ? W2 - 150 : W2 - (info.hidden ? 260 : 640);
+  const colX = Math.min(maxX + 36, rightLimit);
+  const items = partLabels.map((p) => ({ p, s: toScreen(p.anchor) })).sort((a, b) => a.s[1] - b.s[1]);
+  let lastY = -Infinity;
+  const gap = compact() ? 26 : 32;
+  for (const it of items) {
+    const y = Math.max(it.s[1], lastY + gap);
+    lastY = y;
+    it.p.el.style.left = colX + 'px';
+    it.p.el.style.top = y + 'px';
+    it.p.line.setAttribute('x1', it.s[0]);
+    it.p.line.setAttribute('y1', it.s[1]);
+    it.p.line.setAttribute('x2', colX);
+    it.p.line.setAttribute('y2', y);
+    it.p.dot.setAttribute('cx', it.s[0]);
+    it.p.dot.setAttribute('cy', it.s[1]);
+  }
+}
+
+/* ── Tenochtitlan map: building and landmark names ── */
+const mapLabelsEl = document.getElementById('mapLabels');
+let mapLabels = [];
+function buildMapLabels() {
+  mapLabelsEl.innerHTML = '';
+  mapLabels = [];
+  if (state.mode !== 'city') return;
+  for (const [id, x, y, z, maxDist] of city.labels) {
+    const el = document.createElement('button');
+    el.className = 'map-label hidden';
+    el.innerHTML = `${loc(id).name}<i>${ELEMENTS[id].nahuatl.split(' · ')[0]}</i>`;
+    el.addEventListener('click', () => select(id, { focus: true }));
+    mapLabelsEl.appendChild(el);
+    mapLabels.push({ el, id, pos: new THREE.Vector3(x, y, z), maxDist });
+  }
+}
+function positionMapLabels() {
+  if (state.mode !== 'city' || !mapLabels.length) return;
+  const W2 = window.innerWidth,
+    H2 = window.innerHeight;
+  const placed = [];
+  const scale = compact() ? 0.9 : 1;
+  for (const m of mapLabels) {
+    const dist = camera.position.distanceTo(m.pos);
+    _v.copy(m.pos).project(camera);
+    const x = ((_v.x + 1) / 2) * W2,
+      y = ((1 - _v.y) / 2) * H2;
+    let show = _v.z < 1 && dist < m.maxDist * scale && x > 0 && x < W2 && y > 60 && y < H2;
+    const w = m.el.offsetWidth || 120,
+      h = m.el.offsetHeight || 24;
+    const rect = [x - w / 2, y - h - 6, x + w / 2, y];
+    if (show && placed.some((r) => rect[0] < r[2] && rect[2] > r[0] && rect[1] < r[3] && rect[3] > r[1])) show = false;
+    if (show) placed.push(rect);
+    m.el.classList.toggle('hidden', !show);
+    m.el.classList.toggle('active', m.id === state.selected);
+    if (show) {
+      m.el.style.left = x + 'px';
+      m.el.style.top = y - 6 + 'px';
+    }
+  }
+}
+
 /* ───────────────────────── Picking ───────────────────────── */
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -335,7 +523,7 @@ function isShown(o) {
 function pick(clientX, clientY) {
   pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const roots = state.mode === 'city' ? [city.root] : [chin.root];
+  const roots = state.mode === 'city' ? [city.root] : state.mode === 'buildings' ? [bld.root] : [chin.root];
   const hits = raycaster.intersectObjects(roots, true);
   for (let k = 0; k < hits.length; k++) {
     const h = hits[k];
@@ -414,6 +602,7 @@ function select(id, { focus = false } = {}) {
     else if (state.sheet === 'info') setSheet('');
   }
   if (focus) focusOn(id);
+  partLabels.forEach((p) => p.el.classList.toggle('current', p.pid === id));
 }
 
 /* ── Phone bottom sheets: 'legend' (element list), 'info' or '' (closed) ── */
@@ -463,7 +652,9 @@ function renderInfo(id) {
   const tx = loc(id);
   const ui = T();
   const hist = tx.hist?.length ? `<h4>${ui.history}</h4><ul>${tx.hist.map((h) => `<li>${h}</li>`).join('')}</ul>` : '';
-  const action = el.action ? `<button class="action" data-view="${el.action.view}">${tx.action} →</button>` : '';
+  let action = el.action ? `<button class="action" data-view="${el.action.view}">${tx.action} →</button>` : '';
+  // Buildings on the city map get a shortcut to their axonometric model.
+  if (!action && state.mode === 'city' && BUILDINGS.includes(id)) action = `<button class="action" data-view="buildings" data-building="${id}">${ui.viewModel} →</button>`;
   infoBody.innerHTML = `
     <div class="group">${ui.groups[el.group]}</div>
     <h2>${tx.name}</h2>
@@ -478,7 +669,11 @@ function renderInfo(id) {
     ${hist}
     ${action}
     <p class="community">${ui.community}</p>`;
-  infoBody.querySelector('.action')?.addEventListener('click', (e) => setMode(e.currentTarget.dataset.view));
+  infoBody.querySelector('.action')?.addEventListener('click', (e) => {
+    const { view, building } = e.currentTarget.dataset;
+    if (building) state.building = building;
+    setMode(view);
+  });
   info.scrollTop = 0;
 }
 document.getElementById('infoClose').addEventListener('click', () => {
@@ -491,6 +686,10 @@ document.getElementById('infoClose').addEventListener('click', () => {
 document.getElementById('infoBack').addEventListener('click', () => setSheet('legend'));
 
 function focusOn(id) {
+  if (state.mode === 'buildings') {
+    if (BUILDINGS.includes(id)) showBuilding(id, { select: false });
+    return;
+  }
   const root = state.mode === 'city' ? city.root : chin.root;
   const box = new THREE.Box3();
   const tmp = new THREE.Box3();
@@ -512,12 +711,15 @@ function focusOn(id) {
 }
 
 /* ───────────────────────── Legend ───────────────────────── */
+const viewKey = () => (state.mode === 'axo' ? 'chinampa' : state.mode);
+const inView = (el, key) => (Array.isArray(el.view) ? el.view.includes(key) : el.view === key);
 const legendBody = document.getElementById('legendBody');
 function renderLegend() {
-  const view = state.mode === 'city' ? 'city' : 'chinampa';
+  const view = viewKey();
   const groups = {};
   for (const [id, el] of Object.entries(ELEMENTS)) {
-    if (el.view !== view) continue;
+    if (!inView(el, view)) continue;
+    if (el.building && el.building !== state.building) continue; // only the shown building's parts
     (groups[el.group] ||= []).push([id, el]);
   }
   legendBody.innerHTML = Object.entries(groups)
@@ -592,6 +794,10 @@ const rotateAxo = (d) => {
 let orbitTween = null;
 document.getElementById('axoRotL').addEventListener('click', () => rotateAxo(-1));
 document.getElementById('axoRotR').addEventListener('click', () => rotateAxo(1));
+document.getElementById('bldRotL').addEventListener('click', () => rotateAxo(-1));
+document.getElementById('bldRotR').addEventListener('click', () => rotateAxo(1));
+document.getElementById('bldPrev').addEventListener('click', () => stepBuilding(-1));
+document.getElementById('bldNext').addEventListener('click', () => stepBuilding(1));
 
 window.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT') return;
@@ -629,6 +835,8 @@ function applyLang() {
   langsEl.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === state.lang)));
   renderLegend();
   if (state.selected) renderInfo(state.selected);
+  buildMapLabels();
+  if (state.mode === 'buildings') showBuilding(state.building, { select: false });
   updateAxoUI();
   tooltip.hidden = true;
 }
@@ -645,6 +853,7 @@ window.addEventListener('resize', () => {
   persp.aspect = window.innerWidth / window.innerHeight;
   persp.updateProjectionMatrix();
   layoutOrtho();
+  waterDepth.resize();
   state.viewOffApplied = null; // force the view offset to be re-applied at the new size
   updateViewOffsetTarget();
 });
@@ -702,7 +911,26 @@ function animate() {
     const ax = chin.axolotl;
     ax.position.set(-7 + Math.cos(a) * 1.2, -0.55 + Math.sin(t * 0.8) * 0.08, 2 + Math.sin(a) * 5);
     ax.rotation.y = Math.atan2(-Math.cos(a) * 5, -Math.sin(a) * 1.2) + Math.sin(t * 6) * 0.12;
-  } else {
+    // Lake life: lilies and ducks ride the waves, fish swim up and down the east canal.
+    const nat = chin.nature;
+    for (const l of nat.lilies) {
+      l.position.y = 0.05 + waveHeight(l.position.x, l.position.z, t, physics);
+      l.rotation.y = Math.sin(t * 0.2 + l.position.x) * 0.15;
+    }
+    nat.ducks.forEach((d, i) => {
+      const da = t * 0.12 + d.userData.phase;
+      const x = 11.6 + Math.cos(da) * 1.8 + i * 0.4,
+        z = -13.4 + Math.sin(da) * 1.1;
+      d.position.set(x, waveHeight(x, z, t, physics), z);
+      d.rotation.order = 'YXZ';
+      d.rotation.y = Math.atan2(-Math.cos(da) * 1.1, -Math.sin(da) * 1.8) + Math.PI;
+      d.rotation.z = canoeBody.tx * 0.8;
+    });
+    const fz = Math.sin(t * 0.16) * 6.5;
+    nat.fish.position.set(9.4 + Math.sin(t * 0.5) * 0.4, -0.75, fz);
+    nat.fish.rotation.y = Math.cos(t * 0.16) >= 0 ? -Math.PI / 2 : Math.PI / 2;
+    nat.fish.children.forEach((f, i) => (f.rotation.y = Math.sin(t * 5 + i) * 0.2));
+  } else if (state.mode === 'city') {
     updateWater(city.water, t, physics, { amp: 0.18, scale: 0.6, sloshAmp: 0.02, falloff: 120 });
     city.pin.position.y = 13 + Math.sin(t * 2) * 0.8;
     city.pin.rotation.y = t * 0.8;
@@ -716,9 +944,17 @@ function animate() {
 
   applyViewOffset(dt);
   processHover();
+  // Depth pre-pass for the stylised water (skipped in the axonometric plan, which has no shader water).
+  if (state.mode !== 'axo') waterDepth.render(scene, camera, [chin.water, city.water], t);
+  renderer.shadowMap.needsUpdate = true;
   renderer.render(scene, camera);
   positionAxoLabels();
+  positionPartLabels();
+  positionMapLabels();
 }
+
+// Dev-only handle for inspecting the scene from the console.
+if (import.meta.env.DEV) window.__chinamitl = { THREE, scene, chin, city, get camera() { return camera; }, get controls() { return controls; }, flyTo, state };
 
 applyLang();
 setMode('chinampa');

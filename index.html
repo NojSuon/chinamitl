@@ -29,8 +29,9 @@
       <div class="top-right">
         <nav class="modes" role="tablist" data-i18n-aria="viewLabel" aria-label="Vista">
           <button role="tab" data-mode="chinampa" aria-selected="true" data-i18n="modes.chinampa">Chinampa</button>
-          <button role="tab" data-mode="axo" aria-selected="false" data-i18n="modes.axo">Plano por capas</button>
+          <button role="tab" data-mode="axo" aria-selected="false" data-i18n="modes.axo">Capas</button>
           <button role="tab" data-mode="city" aria-selected="false" data-i18n="modes.city">Tenochtitlan</button>
+          <button role="tab" data-mode="buildings" aria-selected="false" data-i18n="modes.buildings">Edificios</button>
         </nav>
         <div class="langs" id="langs" role="group" data-i18n-aria="langLabel" aria-label="Idioma"></div>
         <div class="links">
@@ -93,10 +94,19 @@
         <button id="layerAll" data-i18n="all">Todas</button>
         <button id="axoRotR" class="icon" data-i18n-title="rotate" data-i18n-aria="rotate">⟳</button>
       </div>
+      <div class="axo-controls only-buildings">
+        <button id="bldRotL" class="icon" data-i18n-title="rotate" data-i18n-aria="rotate">⟲</button>
+        <button id="bldPrev" class="icon" data-i18n-aria="prevBuilding">◀</button>
+        <span id="bldName" class="stepper-name"></span>
+        <button id="bldNext" class="icon" data-i18n-aria="nextBuilding">▶</button>
+        <button id="bldRotR" class="icon" data-i18n-title="rotate" data-i18n-aria="rotate">⟳</button>
+      </div>
     </div>
 
     <div class="tooltip" id="tooltip" hidden></div>
     <div class="axo-labels" id="axoLabels"></div>
+    <svg class="label-lines" id="labelLines" aria-hidden="true"></svg>
+    <div class="map-labels" id="mapLabels"></div>
     <p class="hint" id="hint"><span class="wide-only" data-i18n="hint"></span><span class="phone-only" data-i18n="hintTouch"></span></p>
 
     <script type="module" src="/src/main.js"></script>

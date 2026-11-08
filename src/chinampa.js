@@ -1,6 +1,11 @@
 import * as THREE from 'three';
-import { rng, mat, mesh, box, cyl, cone, ico, jitter, tag, mountainRing, waterSurface } from './lowpoly.js';
+import { rng, mat, mesh, box, cyl, cone, ico, jitter, tag, mountainRing, waterSurface, peakGeometry } from './lowpoly.js';
+import { touchesWater } from './water.js';
 import { LAYERS } from './data.js';
+
+const NEIGHBOR_SPOTS = [
+  [-16, 0], [16, 0], [0, -26], [0, 26], [-16, -26], [16, -26], [-16, 26], [16, 26],
+];
 
 export const W = 8; // chinampa width (x)
 export const L = 18; // chinampa length (z)
@@ -43,12 +48,28 @@ export function buildChinampa() {
   }
 
   /* ── Layer 0: lake bed + water ─────────────────────────────── */
-  const bedGeo = jitter(new THREE.PlaneGeometry(150, 150, 40, 40).rotateX(-Math.PI / 2), 0.35, 5);
+  // The canal bed slopes up against each chinampa (built-up sediment) and is deepest
+  // mid-canal, so the water shader can shade shallows and depths like a real canal.
+  const bedGeo = jitter(new THREE.PlaneGeometry(420, 420, 170, 170).rotateX(-Math.PI / 2), 0.25, 5);
+  const rects = [[0, 0, W / 2 + 0.3, L / 2 + 0.3], ...NEIGHBOR_SPOTS.map(([x, z]) => [x, z, W / 2, L / 2])];
+  const bp = bedGeo.attributes.position;
+  for (let i = 0; i < bp.count; i++) {
+    const x = bp.getX(i),
+      z = bp.getZ(i);
+    let d = Infinity;
+    for (const [cx, cz, hx, hz] of rects) {
+      const dx = Math.max(Math.abs(x - cx) - hx, 0);
+      const dz = Math.max(Math.abs(z - cz) - hz, 0);
+      d = Math.min(d, Math.hypot(dx, dz));
+    }
+    const t = THREE.MathUtils.smoothstep(d, 0.3, 4.5);
+    bp.setY(i, bp.getY(i) + THREE.MathUtils.lerp(-1.1, -3.7, t));
+  }
+  bedGeo.computeVertexNormals();
   const bed = mesh(bedGeo, mat('#3c4637'), { cast: false });
-  bed.position.y = BED - 0.05;
-  layerGroups.bed.add(bed);
+  layerGroups.bed.add(touchesWater(bed));
 
-  const water = waterSurface(150, 75, '#3b9fae', 0.74);
+  const water = waterSurface(420, 130, { depthRange: 2.8, foamWidth: 0.55, foamScale: 1.5 });
   tag(water, 'canal');
   layerGroups.bed.add(water);
 
@@ -76,7 +97,7 @@ export function buildChinampa() {
     const m = mesh(geo, mat(b.color));
     m.position.y = (b.y0 + b.y1) / 2;
     tag(m, b.id);
-    layerGroups[b.key].add(m);
+    layerGroups[b.key].add(touchesWater(m));
 
     if (b.reeds) {
       // Loose reeds and tule lying on top of the mat, for texture.
@@ -122,24 +143,63 @@ export function buildChinampa() {
   stakes.castShadow = true;
   stakes.receiveShadow = true;
   tag(stakes, 'stakes');
+  touchesWater(stakes);
   layerGroups.frame.add(stakes);
 
+  // Edge retaining wall: logs and slabs of tree bark stacked horizontally behind the stakes,
+  // from the lake bed up to the soil, as chinamperos line the edges of a real chinampa.
   const wattle = new THREE.Group();
-  const bandYs = [-2.0, -1.45, -0.9, -0.35, 0.2, 0.7];
-  bandYs.forEach((y, i) => {
-    const off = i % 2 ? 0.06 : -0.02;
-    const color = i % 2 ? '#b89a5c' : '#a3874f';
-    const a = box(0.07, 0.16, L + 0.3, color);
-    a.position.set(-hx - off, y, 0);
-    const b = a.clone();
-    b.position.x = hx + off;
-    const c = box(W + 0.3, 0.16, 0.07, color);
-    c.position.set(0, y, -hz - off);
-    const d = c.clone();
-    d.position.z = hz + off;
-    wattle.add(a, b, c, d);
+  const logR = 0.13;
+  const logYs = [];
+  for (let y = BED + logR; y <= TOP - 0.02; y += logR * 1.9) logYs.push(y);
+  const logGeo = new THREE.CylinderGeometry(1, 1, 1, 7).rotateZ(Math.PI / 2); // unit log along x
+  const logMat = new THREE.MeshStandardMaterial({ color: '#ffffff', flatShading: true, roughness: 1 });
+  const logs = new THREE.InstancedMesh(logGeo, logMat, logYs.length * 4 * 2);
+  const barkColors = ['#5b4330', '#6b4f37', '#4e3a2a', '#73563b', '#5f4a36'];
+  const lc = new THREE.Color();
+  let li = 0;
+  const ex = W / 2 + 0.02;
+  const ez = L / 2 + 0.02;
+  const addLog = (x, y, z, len, alongZ, rad) => {
+    dummy.position.set(x, y, z);
+    dummy.rotation.set((r() - 0.5) * 0.4, alongZ ? Math.PI / 2 : 0, (r() - 0.5) * 0.02);
+    dummy.scale.set(len, rad, rad * (0.8 + r() * 0.3));
+    dummy.updateMatrix();
+    logs.setMatrixAt(li, dummy.matrix);
+    logs.setColorAt(li, lc.set(barkColors[Math.floor(r() * barkColors.length)]));
+    li++;
+  };
+  logYs.forEach((y) => {
+    // Each course is made of two shorter logs per side, so the joints stagger.
+    const split = 0.35 + r() * 0.3;
+    for (const s of [-1, 1]) {
+      const zA = -ez + (L * split) / 2;
+      const zB = ez - (L * (1 - split)) / 2;
+      addLog(s * ex, y, zA, L * split + 0.1, true, logR * (0.85 + r() * 0.3));
+      addLog(s * ex, y, zB, L * (1 - split) + 0.1, true, logR * (0.85 + r() * 0.3));
+      const xA = -ex + (W * split) / 2;
+      const xB = ex - (W * (1 - split)) / 2;
+      addLog(xA, y, s * ez, W * split + 0.25, false, logR * (0.85 + r() * 0.3));
+      addLog(xB, y, s * ez, W * (1 - split) + 0.25, false, logR * (0.85 + r() * 0.3));
+    }
   });
+  logs.count = li;
+  logs.castShadow = logs.receiveShadow = true;
+  wattle.add(logs);
+  // Flat slabs of bark pressed between some logs and the stakes.
+  for (let k = 0; k < 18; k++) {
+    const side = k % 4;
+    const slab = box(side < 2 ? 0.05 : 0.9 + r() * 0.6, 0.5 + r() * 0.5, side < 2 ? 0.9 + r() * 0.6 : 0.05, ['#4e3a2a', '#6b4f37'][k % 2]);
+    const y = -0.9 + r() * 1.2;
+    if (side === 0) slab.position.set(-ex - 0.1, y, (r() - 0.5) * (L - 2));
+    if (side === 1) slab.position.set(ex + 0.1, y, (r() - 0.5) * (L - 2));
+    if (side === 2) slab.position.set((r() - 0.5) * (W - 1.5), y, -ez - 0.1);
+    if (side === 3) slab.position.set((r() - 0.5) * (W - 1.5), y, ez + 0.1);
+    slab.rotation.set((r() - 0.5) * 0.15, 0, (r() - 0.5) * 0.15);
+    wattle.add(slab);
+  }
   tag(wattle, 'wattle');
+  touchesWater(wattle);
   layerGroups.frame.add(wattle);
 
   /* ── Crops & seedbed (sit on the soil surface) ─────────────── */
@@ -352,13 +412,19 @@ export function buildChinampa() {
   const door = box(0.7, 1.2, 0.05, '#4a3020');
   door.position.set(0.6, 0.6, -1.15);
   hut.add(door);
-  const roofGeo = jitter(new THREE.ConeGeometry(2.0, 1.7, 4, 2).rotateY(Math.PI / 4), 0.08, 9);
-  const roof = mesh(roofGeo, mat('#d4b25e'));
+  // Hip roof of thatch: a clean 4-sided pyramid (no vertex jitter, which tore holes in it)
+  // plus a slightly larger, darker under-layer that reads as the thatch's thickness.
+  const roofGeo = new THREE.ConeGeometry(2.0, 1.7, 4, 1).rotateY(Math.PI / 4);
+  const roof = mesh(roofGeo, mat('#d4b25e', { side: THREE.DoubleSide }));
   roof.scale.set(1.35, 1, 0.98);
-  roof.position.y = 1.7 + 0.8;
-  hut.add(roof);
-  const ridge = cone(0.15, 0.4, '#b8954a', 4);
-  ridge.position.y = 3.6;
+  roof.position.y = 1.7 + 0.85;
+  const eaves = mesh(new THREE.ConeGeometry(2.08, 0.5, 4, 1, true).rotateY(Math.PI / 4), mat('#b8954a', { side: THREE.DoubleSide }));
+  eaves.scale.set(1.35, 1, 0.98);
+  eaves.position.y = 1.7 + 0.15;
+  hut.add(roof, eaves);
+  const ridge = cone(0.13, 0.35, '#b8954a', 4);
+  ridge.rotation.y = Math.PI / 4;
+  ridge.position.y = 1.7 + 0.85 + 0.85 + 0.08;
   hut.add(ridge);
   tag(hut, 'hut');
   life.add(hut);
@@ -410,16 +476,154 @@ export function buildChinampa() {
   });
   root.add(mountains);
 
+  // Popocatépetl and Iztaccíhuatl on the south-east horizon.
+  const volcanoes = new THREE.Group();
+  const popo = mesh(jitter(peakGeometry(58, 62, 8, 3), 4, 4, { keepBottom: true }), mat('#8a9a9a'), { cast: false, receive: false });
+  popo.position.set(150, 30, 165);
+  const popoSnow = mesh(new THREE.ConeGeometry(19, 20, 8), mat('#f4f1ea'), { cast: false, receive: false });
+  popoSnow.position.set(150, 52, 165);
+  const izta = mesh(jitter(peakGeometry(55, 44, 7, 3), 4, 6, { keepBottom: true }), mat('#94a3a2'), { cast: false, receive: false });
+  izta.scale.set(1.9, 1, 0.8);
+  izta.position.set(60, 21, 195);
+  const iztaSnow = mesh(new THREE.ConeGeometry(36, 12, 7), mat('#f4f1ea'), { cast: false, receive: false });
+  iztaSnow.scale.set(1.9, 1, 0.6);
+  iztaSnow.position.set(60, 38, 195);
+  volcanoes.add(popo, popoSnow, izta, iztaSnow);
+  tag(volcanoes, 'volcanoes');
+  root.add(volcanoes);
+
+  /* ── Lake life: tule, water lilies, fish, acocil, ducks ───── */
+  const nature = buildLakeLife(r, sway);
+  extras.add(nature.group);
+
   return {
     root,
     layerGroups,
     sway,
     water,
     axoOnly,
-    detailOnly: [bed, water, extras, neighbors, mountains],
+    detailOnly: [bed, water, extras, neighbors, mountains, volcanoes],
     canoe: { ...canoe, path, u: 0 },
     axolotl,
+    nature,
   };
+}
+
+function buildLakeLife(r, sway) {
+  const group = new THREE.Group();
+
+  // Tule clumps along the canal edges (clear of the canoe route).
+  const tuleSpots = [
+    [11.4, -5], [11.4, 4.5], [-11.4, -3], [-11.4, 6.5], [5, 16.6], [-4.5, -16.6], [-11.2, -14], [11.2, 15],
+  ];
+  const stemGeo = new THREE.ConeGeometry(0.05, 1, 4).translate(0, 0.5, 0);
+  const headGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.35, 5);
+  for (const [x, z] of tuleSpots) {
+    const clump = new THREE.Group();
+    clump.position.set(x, 0, z);
+    for (let k = 0; k < 14; k++) {
+      const h = 1.2 + r() * 1.3;
+      const stem = mesh(stemGeo, mat(['#6f8f3e', '#7f9a46', '#8a8a48', '#5f7f37'][k % 4]));
+      stem.scale.set(1, h, 1);
+      stem.position.set((r() - 0.5) * 1.4, -0.3, (r() - 0.5) * 1.4);
+      stem.rotation.set((r() - 0.5) * 0.25, 0, (r() - 0.5) * 0.25);
+      clump.add(stem);
+      if (k % 4 === 0) {
+        const hd = mesh(headGeo, mat('#6b4a2e'));
+        hd.position.set(stem.position.x, -0.3 + h * 0.85, stem.position.z);
+        clump.add(hd);
+      }
+    }
+    tag(clump, 'tule');
+    touchesWater(clump);
+    group.add(clump);
+    sway.push({ obj: clump, k: 14, c: 1.8, gain: 0.9, max: 0.22 });
+  }
+
+  // Water lilies: floating pads and a few flowers.
+  const lilies = [];
+  const padGeo = new THREE.CylinderGeometry(1, 1, 0.05, 9);
+  const flowerGeo = new THREE.ConeGeometry(0.16, 0.22, 6).rotateX(Math.PI);
+  for (const [cx, cz] of [[9.8, -2.5], [-9.6, 9.5], [2.5, 17.6], [-8.8, -17.5], [9.5, 18.5]]) {
+    const cluster = new THREE.Group();
+    cluster.position.set(cx, 0.05, cz);
+    for (let k = 0; k < 7; k++) {
+      const pad = mesh(padGeo, mat(k % 2 ? '#4f8a3a' : '#5c9a43'), { cast: false });
+      const s = 0.3 + r() * 0.22;
+      pad.scale.set(s, 1, s);
+      pad.position.set((r() - 0.5) * 2.4, 0, (r() - 0.5) * 2.4);
+      cluster.add(pad);
+      if (k % 3 === 0) {
+        const fl = mesh(flowerGeo, mat(k % 2 ? '#f4c6d7' : '#fbf6ee'));
+        fl.position.set(pad.position.x, 0.14, pad.position.z);
+        cluster.add(fl);
+      }
+    }
+    tag(cluster, 'lily');
+    touchesWater(cluster);
+    group.add(cluster);
+    lilies.push(cluster);
+  }
+
+  // A small school of white fish swimming in the east canal.
+  const fish = new THREE.Group();
+  for (let k = 0; k < 5; k++) {
+    const f = new THREE.Group();
+    const body = mesh(new THREE.ConeGeometry(0.09, 0.42, 5), mat('#d9e2e0'));
+    body.rotation.z = -Math.PI / 2;
+    const tail = mesh(new THREE.ConeGeometry(0.08, 0.15, 3), mat('#b9c7c5'));
+    tail.rotation.z = Math.PI / 2;
+    tail.position.x = -0.26;
+    f.add(body, tail);
+    f.position.set((r() - 0.5) * 0.8, (r() - 0.5) * 0.3, (r() - 0.5) * 1.2);
+    f.scale.setScalar(1.6);
+    fish.add(f);
+  }
+  tag(fish, 'fish');
+  group.add(fish);
+
+  // Acocil (crayfish) on the shallow bed beside the chinampa.
+  const acocil = new THREE.Group();
+  for (let k = 0; k < 6; k++) {
+    const a = new THREE.Group();
+    const body = mesh(new THREE.CapsuleGeometry(0.06, 0.22, 2, 5), mat('#b5603a'));
+    body.rotation.z = Math.PI / 2;
+    const claw = mesh(new THREE.ConeGeometry(0.04, 0.16, 3), mat('#c8703f'));
+    claw.rotation.z = -Math.PI / 2;
+    claw.position.x = 0.22;
+    a.add(body, claw);
+    a.position.set(-4.75 - r() * 0.5, -1.0, -6 + k * 2.2);
+    a.rotation.y = r() * 6;
+    a.scale.setScalar(1.8);
+    acocil.add(a);
+  }
+  tag(acocil, 'acocil');
+  group.add(acocil);
+
+  // Ducks paddling in the north-east canal.
+  const ducks = [];
+  for (let k = 0; k < 3; k++) {
+    const d = new THREE.Group();
+    const body = ico(0.28, '#7a5a3c', 0, k, 0.04);
+    body.scale.set(1.5, 0.75, 1);
+    body.position.y = 0.12;
+    const head = ico(0.15, k === 1 ? '#7a5a3c' : '#2f6b45', 0, k + 5);
+    head.position.set(0.36, 0.38, 0);
+    const bill = cone(0.06, 0.18, '#d99a2b', 4);
+    bill.rotation.z = -Math.PI / 2;
+    bill.position.set(0.55, 0.36, 0);
+    const tail = cone(0.1, 0.2, '#5a3f2b', 4);
+    tail.rotation.z = Math.PI / 2 + 0.5;
+    tail.position.set(-0.45, 0.22, 0);
+    d.add(body, head, bill, tail);
+    d.userData.phase = k * 2.1;
+    tag(d, 'duck');
+    touchesWater(d);
+    group.add(d);
+    ducks.push(d);
+  }
+
+  return { group, lilies, fish, ducks };
 }
 
 function ahuejote(r, colors) {
@@ -469,6 +673,7 @@ function buildCanoe(r) {
   const boat = new THREE.Group();
   boat.add(hull, inner, cargo);
   tag(boat, 'canoe');
+  touchesWater(hull);
 
   const person = new THREE.Group();
   const body = cone(0.3, 1.05, '#f2ece0', 6);
@@ -514,6 +719,7 @@ function buildAxolotl() {
       g.add(leg);
     }
   g.scale.setScalar(1.8);
+  touchesWater(body);
   tag(g, 'axolotl');
   return g;
 }
@@ -544,9 +750,7 @@ function buildHeron() {
 
 function buildNeighbors(r) {
   const g = new THREE.Group();
-  const spots = [
-    [-16, 0], [16, 0], [0, -26], [0, 26], [-16, -26], [16, -26], [-16, 26], [16, 26],
-  ];
+  const spots = NEIGHBOR_SPOTS;
   const trunkGeo = new THREE.CylinderGeometry(0.1, 0.15, 2.4, 5);
   const crownGeo = jitter(new THREE.IcosahedronGeometry(0.7, 0), 0.2, 3);
   const perPlot = 14;
@@ -559,7 +763,7 @@ function buildNeighbors(r) {
     body.position.set(x, (TOP + BED) / 2, z);
     const top = box(W - 0.2, 0.12, L - 0.2, '#5a7d38');
     top.position.set(x, TOP + 0.06, z);
-    g.add(body, top);
+    g.add(touchesWater(body), top);
     for (let k = 0; k < 4; k++) {
       const row = box(0.6, 0.5 + r() * 0.6, L - 4, ['#86ad4c', '#9cbf55', '#e09a2c', '#6f9a3a'][(k + si) % 4]);
       row.position.set(x - 2.2 + k * 1.45, TOP + 0.3, z);
