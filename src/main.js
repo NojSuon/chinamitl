@@ -214,11 +214,12 @@ function setMode(mode, { keepSelection = false } = {}) {
     controls = makeControls(camera);
     controls.target.copy(target);
   }
-  controls.enableRotate = !isOrtho;
+  // Free drag-rotation everywhere; in the axonometric views the ⟲ ⟳ buttons snap back to a clean isometric angle.
+  controls.enableRotate = true;
   controls.autoRotate = !isOrtho && document.getElementById('autoRotate').checked;
   controls.minDistance = mode === 'city' ? 20 : 4;
   controls.maxDistance = mode === 'city' ? 700 : 160;
-  controls.maxPolarAngle = mode === 'city' ? Math.PI * 0.47 : Math.PI * 0.62;
+  controls.maxPolarAngle = mode === 'city' || isOrtho ? Math.PI * 0.47 : Math.PI * 0.62;
 
   if (mode === 'city') {
     setShadowBounds(170, 600);
@@ -242,7 +243,7 @@ function setMode(mode, { keepSelection = false } = {}) {
     layoutOrtho();
     tween = null;
     physics.reset();
-    showBuilding(state.building, { select: false });
+    showBuilding(state.building, { select: false, keepAngle: false });
   } else {
     const v = VIEWS[mode];
     if (prevMode === 'axo' || prevMode === 'buildings' || prevMode === mode) {
@@ -264,7 +265,7 @@ function setMode(mode, { keepSelection = false } = {}) {
 
 /* ───────────────────────── Buildings view ───────────────────────── */
 const bldNameEl = document.getElementById('bldName');
-function showBuilding(id, { select: doSelect = true } = {}) {
+function showBuilding(id, { select: doSelect = true, keepAngle = true } = {}) {
   state.building = id;
   for (const [k, m] of Object.entries(bld.models)) m.visible = k === id;
   bldNameEl.textContent = `${BUILDINGS.indexOf(id) + 1}/${BUILDINGS.length} · ${loc(id).name}`;
@@ -280,6 +281,7 @@ function showBuilding(id, { select: doSelect = true } = {}) {
   camera.zoom = Math.min((visW * (compact() ? 0.62 : 0.32)) / footW, (visH * (compact() ? 0.4 : 0.52)) / footH);
   camera.updateProjectionMatrix();
   const t = new THREE.Vector3(center.x, center.y * 0.8, center.z);
+  if (state.mode === 'buildings' && keepAngle) state.axoAz = currentAz();
   if (state.mode === 'buildings') flyTo(axoCameraPos(state.axoAz, t), t, 0.6);
   buildPartLabels();
   if (state.mode === 'buildings') renderLegend();
@@ -298,6 +300,10 @@ function targetOffset(i) {
 function axoTarget() {
   const lvl = state.axoLevel;
   return new THREE.Vector3(0, (lvl * AXO_GAP) / 2 + (LAYER_MID[0] + LAYER_MID[lvl]) / 2, 0);
+}
+// Current horizontal viewing angle, so stepping layers/buildings keeps the angle the user rotated to.
+function currentAz() {
+  return Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
 }
 function axoCameraPos(az, target) {
   const d = 150;
@@ -350,6 +356,7 @@ function stepLayer(d) {
   state.axoLevel = THREE.MathUtils.clamp(state.axoLevel + d, 0, LAYERS.length - 1);
   updateAxoUI();
   const t = axoTarget();
+  state.axoAz = currentAz();
   flyTo(axoCameraPos(state.axoAz, t), t, 0.6);
   if (!compact()) select(LAYERS[state.axoLevel].id, { focus: false });
 }
@@ -787,7 +794,8 @@ document.getElementById('layerPrev').addEventListener('click', () => stepLayer(-
 document.getElementById('layerNext').addEventListener('click', () => stepLayer(1));
 document.getElementById('layerAll').addEventListener('click', () => stepLayer(LAYERS.length));
 const rotateAxo = (d) => {
-  state.axoAz += d * (Math.PI / 2);
+  // Snap to the next isometric quarter-turn from wherever the user has rotated to.
+  state.axoAz = Math.round((currentAz() - Math.PI / 4) / (Math.PI / 2)) * (Math.PI / 2) + Math.PI / 4 + d * (Math.PI / 2);
   const t = controls.target.clone();
   orbitTween = { from: Math.atan2(camera.position.x - t.x, camera.position.z - t.z), to: state.axoAz, t: 0, target: t };
 };
