@@ -7,9 +7,15 @@ import { buildCity, insideIsland } from './city.js';
 import { MotionPhysics, updateWater } from './physics.js';
 
 /* ───────────────────────── Renderer & scene ───────────────────────── */
+// Phones and portrait tablets use the compact layout (matches the 900px CSS breakpoint).
+const compactMQ = window.matchMedia('(max-width: 900px)');
+const compact = () => compactMQ.matches;
+const coarse = window.matchMedia('(pointer: coarse)').matches;
+
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// Lighter rendering on touch devices to keep phones smooth and cool.
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, coarse ? 1.75 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -26,7 +32,7 @@ scene.add(new THREE.HemisphereLight('#fff1d6', '#3d5d4f', 1.25));
 const sun = new THREE.DirectionalLight('#ffe2b8', 2.3);
 sun.position.set(30, 45, 18);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.setScalar(coarse ? 1024 : 2048);
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
@@ -112,6 +118,10 @@ function storedLang() {
 const state = {
   lang: storedLang(),
   mode: 'chinampa',
+  sheet: '',
+  viewOff: 0,
+  viewOffTarget: 0,
+  viewOffApplied: null,
   selected: null,
   hovered: null,
   explode: 0,
@@ -201,7 +211,7 @@ function setMode(mode, { keepSelection = false } = {}) {
   renderLegend();
   if (!keepSelection) {
     // On phones the info sheet would cover the scene, so only open it on demand.
-    if (window.innerWidth < 960) select(null);
+    if (compact()) select(null);
     else select(mode === 'city' ? 'cityChinampa' : 'chinampa', { focus: false });
   }
 }
@@ -225,7 +235,7 @@ function axoCameraPos(az, target) {
 }
 function layoutOrtho() {
   const aspect = window.innerWidth / window.innerHeight;
-  const narrow = window.innerWidth < 860;
+  const narrow = compact();
   const halfH = narrow ? 40 : 31;
   // Shift the plan left of centre so the layer labels have room beside the info panel.
   const shift = narrow ? halfH * aspect * 0.42 : halfH * aspect * 0.2;
@@ -267,7 +277,7 @@ function stepLayer(d) {
   updateAxoUI();
   const t = axoTarget();
   flyTo(axoCameraPos(state.axoAz, t), t, 0.6);
-  if (window.innerWidth >= 960) select(LAYERS[state.axoLevel].id, { focus: false });
+  if (!compact()) select(LAYERS[state.axoLevel].id, { focus: false });
 }
 
 const labelsEl = document.getElementById('axoLabels');
@@ -351,7 +361,7 @@ function processHover() {
   if (!pendingMove) return;
   const e = pendingMove;
   pendingMove = null;
-  if (e.buttons) {
+  if (e.buttons || e.pointerType === 'touch') {
     tooltip.hidden = true;
     return;
   }
@@ -375,19 +385,21 @@ canvas.addEventListener('pointerdown', (e) => {
   down = { x: e.clientX, y: e.clientY };
   hideHint();
 });
+let lastTap = { id: null, time: 0 };
 canvas.addEventListener('pointerup', (e) => {
   if (!down) return;
   const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
   down = null;
-  if (moved > 5) return;
+  if (moved > (e.pointerType === 'touch' ? 12 : 5)) return;
   const id = pick(e.clientX, e.clientY);
-  if (id) select(id, { focus: state.mode !== 'axo' && e.detail >= 2 });
+  const now = performance.now();
+  // Double-tap (touch) or double-click on the same element flies the camera to it.
+  const doubleTap = id && id === lastTap.id && now - lastTap.time < 380;
+  lastTap = { id, time: now };
+  if (id) select(id, { focus: state.mode !== 'axo' && doubleTap });
+  else if (compact() && state.sheet === 'info') setSheet('');
 });
 canvas.addEventListener('pointerleave', () => (tooltip.hidden = true));
-canvas.addEventListener('dblclick', (e) => {
-  const id = pick(e.clientX, e.clientY);
-  if (id && state.mode !== 'axo') focusOn(id);
-});
 
 /* ───────────────────────── Selection & info panel ───────────────────────── */
 const info = document.getElementById('info');
@@ -397,7 +409,41 @@ function select(id, { focus = false } = {}) {
   state.selected = id;
   renderInfo(id);
   document.querySelectorAll('.legend-item').forEach((b) => b.classList.toggle('active', b.dataset.id === id));
+  if (compact()) {
+    if (id) setSheet('info');
+    else if (state.sheet === 'info') setSheet('');
+  }
   if (focus) focusOn(id);
+}
+
+/* ── Phone bottom sheets: 'legend' (element list), 'info' or '' (closed) ── */
+const legendEl = document.getElementById('legend');
+function setSheet(kind) {
+  state.sheet = kind;
+  document.body.dataset.sheet = kind;
+  document.getElementById('sheetBtn').setAttribute('aria-expanded', String(kind === 'legend'));
+  updateViewOffsetTarget();
+}
+// Shift the 3D view up so whatever is selected stays visible above an open sheet.
+function updateViewOffsetTarget() {
+  let h = 0;
+  if (compact() && state.sheet) {
+    const el = state.sheet === 'legend' ? legendEl : info;
+    h = el.getBoundingClientRect().height;
+  }
+  state.viewOffTarget = h * 0.45;
+}
+function applyViewOffset(dt) {
+  const d = state.viewOffTarget - state.viewOff;
+  if (Math.abs(d) < 0.5 && state.viewOffApplied === camera) return;
+  state.viewOff += d * (1 - Math.exp(-dt * 9));
+  if (Math.abs(state.viewOffTarget - state.viewOff) < 0.5) state.viewOff = state.viewOffTarget;
+  const w = window.innerWidth,
+    h = window.innerHeight;
+  if (state.viewOffApplied && state.viewOffApplied !== camera) state.viewOffApplied.clearViewOffset();
+  if (state.viewOff > 0.5) camera.setViewOffset(w, h, 0, state.viewOff, w, h);
+  else camera.clearViewOffset();
+  state.viewOffApplied = camera;
 }
 
 function T() {
@@ -440,7 +486,9 @@ document.getElementById('infoClose').addEventListener('click', () => {
   state.selected = null;
   info.hidden = true;
   document.querySelectorAll('.legend-item').forEach((b) => b.classList.remove('active'));
+  if (compact()) setSheet('');
 });
+document.getElementById('infoBack').addEventListener('click', () => setSheet('legend'));
 
 function focusOn(id) {
   const root = state.mode === 'city' ? city.root : chin.root;
@@ -488,11 +536,33 @@ function renderLegend() {
     b.addEventListener('click', () => select(b.dataset.id, { focus: state.mode !== 'axo' })),
   );
 }
-document.getElementById('legendToggle').addEventListener('click', (e) => {
-  const lg = document.getElementById('legend');
-  lg.classList.toggle('open');
-  e.currentTarget.setAttribute('aria-expanded', String(lg.classList.contains('open')));
+/* ── About / contact dialog ── */
+const aboutDlg = document.getElementById('about');
+document.getElementById('aboutBtn').addEventListener('click', () => {
+  hideHint();
+  aboutDlg.showModal();
 });
+document.getElementById('aboutClose').addEventListener('click', () => aboutDlg.close());
+aboutDlg.addEventListener('click', (e) => {
+  if (e.target === aboutDlg) aboutDlg.close(); // click on the backdrop
+});
+document.getElementById('copyEmail').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  try {
+    await navigator.clipboard.writeText('matimati.info@gmail.com');
+    btn.textContent = T().copied;
+    setTimeout(() => (btn.textContent = T().copy), 1600);
+  } catch {
+    window.location.href = 'mailto:matimati.info@gmail.com';
+  }
+});
+
+document.getElementById('legendClose').addEventListener('click', () => setSheet(''));
+document.getElementById('sheetBtn').addEventListener('click', () => {
+  hideHint();
+  setSheet(state.sheet === 'legend' ? '' : 'legend');
+});
+compactMQ.addEventListener('change', () => setSheet(''));
 
 /* ───────────────────────── Toolbar ───────────────────────── */
 document.querySelectorAll('.modes button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
@@ -575,6 +645,8 @@ window.addEventListener('resize', () => {
   persp.aspect = window.innerWidth / window.innerHeight;
   persp.updateProjectionMatrix();
   layoutOrtho();
+  state.viewOffApplied = null; // force the view offset to be re-applied at the new size
+  updateViewOffsetTarget();
 });
 
 /* ───────────────────────── Loop ───────────────────────── */
@@ -642,6 +714,7 @@ function animate() {
 
   if (state.selected) setGlow(state.selected, 0.13 + Math.sin(t * 4) * 0.07);
 
+  applyViewOffset(dt);
   processHover();
   renderer.render(scene, camera);
   positionAxoLabels();

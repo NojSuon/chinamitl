@@ -2,7 +2,8 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#2f6b73" />
     <title>Chinamitl · Explorador de chinampas</title>
     <meta name="description" content="Explora, elemento por elemento, una chinampa en low poly y su lugar en Mexiko-Tenochtitlan. Un proyecto de Mati Mati." />
     <link rel="icon" type="image/png" href="/mati-logo-petroleo.png" />
@@ -32,23 +33,55 @@
           <button role="tab" data-mode="city" aria-selected="false" data-i18n="modes.city">Tenochtitlan</button>
         </nav>
         <div class="langs" id="langs" role="group" data-i18n-aria="langLabel" aria-label="Idioma"></div>
+        <div class="links">
+          <a class="pill donate" href="https://ko-fi.com/suondilut" target="_blank" rel="noopener" data-i18n-title="donateLong" data-i18n-aria="donateLong"
+            ><span aria-hidden="true">♥</span><span class="lbl" data-i18n="donate">Dona</span></a
+          >
+          <button class="pill about-btn" id="aboutBtn" data-i18n-title="about" data-i18n-aria="about" aria-haspopup="dialog"
+            ><span aria-hidden="true">i</span><span class="lbl" data-i18n="about">Acerca de · Contacto</span></button
+          >
+        </div>
       </div>
     </header>
 
+    <dialog class="about" id="about" aria-labelledby="aboutTitle">
+      <button class="close" id="aboutClose" data-i18n-aria="close" aria-label="Cerrar">×</button>
+      <img src="/mati-logo-petroleo.png" alt="" width="56" height="56" class="about-logo" />
+      <h2 id="aboutTitle" data-i18n="aboutTitle">Acerca de Mati Mati</h2>
+      <p data-i18n="aboutText1"></p>
+      <p data-i18n="aboutText2"></p>
+      <h3 data-i18n="contactTitle">Contáctanos</h3>
+      <p data-i18n="contactText"></p>
+      <div class="email-row">
+        <a class="email" href="mailto:matimati.info@gmail.com">matimati.info@gmail.com</a>
+        <button class="copy" id="copyEmail" data-i18n="copy">Copiar</button>
+      </div>
+      <h3 data-i18n="donateTitle">Apóyanos</h3>
+      <p data-i18n="donateText"></p>
+      <a class="donate-big" href="https://ko-fi.com/suondilut" target="_blank" rel="noopener"><span aria-hidden="true">♥</span> <span data-i18n="donateLong">Dona en Ko-fi</span></a>
+    </dialog>
+
     <aside class="legend" id="legend" data-i18n-aria="elements" aria-label="Elementos">
-      <button class="legend-toggle" id="legendToggle" aria-expanded="true" data-i18n="elements">Elementos</button>
+      <div class="sheet-head">
+        <span class="legend-title" data-i18n="elements">Elementos</span>
+        <button class="close phone-only" id="legendClose" data-i18n-aria="close" aria-label="Cerrar">×</button>
+      </div>
       <div class="legend-body" id="legendBody"></div>
     </aside>
 
     <aside class="info" id="info" aria-live="polite" hidden>
+      <div class="sheet-head phone-only">
+        <button class="back" id="infoBack" data-i18n="back">← Elementos</button>
+      </div>
       <button class="close" id="infoClose" data-i18n-aria="close" aria-label="Cerrar">×</button>
       <div id="infoBody"></div>
     </aside>
 
     <div class="toolbar" id="toolbar">
-      <button id="resetView" data-i18n="reset" data-i18n-title="resetTitle">Reiniciar vista</button>
+      <button id="sheetBtn" class="phone-only list-btn" aria-controls="legend" data-i18n="elements">Elementos</button>
+      <button id="resetView" data-i18n-title="resetTitle"><span class="wide-only" data-i18n="reset">Reiniciar vista</span><span class="phone-only" data-i18n="resetShort">Reiniciar</span></button>
       <label class="toggle"><input type="checkbox" id="autoRotate" /> <span data-i18n="spin">Girar</span></label>
-      <label class="toggle"><input type="checkbox" id="physicsToggle" checked /> <span data-i18n="physics">Física de movimiento</span></label>
+      <label class="toggle"><input type="checkbox" id="physicsToggle" checked /> <span class="wide-only" data-i18n="physics">Física de movimiento</span><span class="phone-only" data-i18n="physicsShort">Física</span></label>
       <label class="slider only-chinampa"><span data-i18n="explode">Separar capas</span>
         <input type="range" id="explode" min="0" max="1" step="0.01" value="0" />
       </label>
@@ -64,7 +97,7 @@
 
     <div class="tooltip" id="tooltip" hidden></div>
     <div class="axo-labels" id="axoLabels"></div>
-    <p class="hint" id="hint" data-i18n="hint"></p>
+    <p class="hint" id="hint"><span class="wide-only" data-i18n="hint"></span><span class="phone-only" data-i18n="hintTouch"></span></p>
 
     <script type="module" src="/src/main.js"></script>
   </body>
