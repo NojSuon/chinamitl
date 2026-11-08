@@ -96,7 +96,7 @@ export const BUILDING_ELEMENTS = {
   tzompantli: {
     view: ['city', 'buildings'],
     group: 'buildings',
-    nahuatl: 'Weyi tsompantli',
+    nahuatl: 'Ueyi tsompantli',
     classical: 'Huēyi tzompantli',
     t: {
       es: {
@@ -126,7 +126,7 @@ export const BUILDING_ELEMENTS = {
   tecpan: {
     view: ['city', 'buildings'],
     group: 'buildings',
-    nahuatl: 'Weyi tekpan',
+    nahuatl: 'Ueyi tekpan',
     classical: 'Huēyi tēcpan',
     t: {
       es: {
