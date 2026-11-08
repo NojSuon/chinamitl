@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chinamitl · Explorador de chinampas</title>
+    <meta name="description" content="Explora, elemento por elemento, una chinampa en low poly y su lugar en Mexiko-Tenochtitlan. Un proyecto de Mati Mati." />
+    <link rel="icon" type="image/png" href="/mati-logo-petroleo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body data-mode="chinampa">
+    <canvas id="scene"></canvas>
+
+    <header class="topbar">
+      <div class="brand">
+        <img class="logo" src="/mati-logo-petroleo.png" alt="Mati Mati" width="44" height="44" />
+        <div>
+          <h1>Chinamitl</h1>
+          <p><span data-i18n="subtitle">Explorador de chinampas · Mexiko-Tenochtitlan</span> · <span data-i18n="by">por Mati Mati</span></p>
+        </div>
+      </div>
+      <div class="top-right">
+        <nav class="modes" role="tablist" data-i18n-aria="viewLabel" aria-label="Vista">
+          <button role="tab" data-mode="chinampa" aria-selected="true" data-i18n="modes.chinampa">Chinampa</button>
+          <button role="tab" data-mode="axo" aria-selected="false" data-i18n="modes.axo">Plano por capas</button>
+          <button role="tab" data-mode="city" aria-selected="false" data-i18n="modes.city">Tenochtitlan</button>
+        </nav>
+        <div class="langs" id="langs" role="group" data-i18n-aria="langLabel" aria-label="Idioma"></div>
+      </div>
+    </header>
+
+    <aside class="legend" id="legend" data-i18n-aria="elements" aria-label="Elementos">
+      <button class="legend-toggle" id="legendToggle" aria-expanded="true" data-i18n="elements">Elementos</button>
+      <div class="legend-body" id="legendBody"></div>
+    </aside>
+
+    <aside class="info" id="info" aria-live="polite" hidden>
+      <button class="close" id="infoClose" data-i18n-aria="close" aria-label="Cerrar">×</button>
+      <div id="infoBody"></div>
+    </aside>
+
+    <div class="toolbar" id="toolbar">
+      <button id="resetView" data-i18n="reset" data-i18n-title="resetTitle">Reiniciar vista</button>
+      <label class="toggle"><input type="checkbox" id="autoRotate" /> <span data-i18n="spin">Girar</span></label>
+      <label class="toggle"><input type="checkbox" id="physicsToggle" checked /> <span data-i18n="physics">Física de movimiento</span></label>
+      <label class="slider only-chinampa"><span data-i18n="explode">Separar capas</span>
+        <input type="range" id="explode" min="0" max="1" step="0.01" value="0" />
+      </label>
+      <div class="axo-controls only-axo">
+        <button id="axoRotL" class="icon" data-i18n-title="rotate" data-i18n-aria="rotate">⟲</button>
+        <button id="layerPrev" class="icon" data-i18n-aria="prevLayer">◀</button>
+        <span id="layerName"></span>
+        <button id="layerNext" class="icon" data-i18n-aria="nextLayer">▶</button>
+        <button id="layerAll" data-i18n="all">Todas</button>
+        <button id="axoRotR" class="icon" data-i18n-title="rotate" data-i18n-aria="rotate">⟳</button>
+      </div>
+    </div>
+
+    <div class="tooltip" id="tooltip" hidden></div>
+    <div class="axo-labels" id="axoLabels"></div>
+    <p class="hint" id="hint" data-i18n="hint"></p>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
