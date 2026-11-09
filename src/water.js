@@ -22,6 +22,7 @@ const shared = {
   uFar: { value: 1000 },
   uOrtho: { value: 0 },
   uTime: { value: 0 },
+  uFoamGlow: { value: 0.35 }, // how much the foam glows; lowered at night
 };
 
 export function makeWaterMaterial({
@@ -66,7 +67,7 @@ export function makeWaterMaterial({
 varying vec3 vWPos;
 uniform sampler2D tDepth;
 uniform vec2 uResolution;
-uniform float uNear, uFar, uOrtho, uTime;
+uniform float uNear, uFar, uOrtho, uTime, uFoamGlow;
 uniform vec3 uShallow, uDeep, uFoam;
 uniform float uDepthRange, uFoamWidth, uFoamScale;
 uniform vec2 uOpacity;
@@ -113,7 +114,7 @@ float wViewZ(float d) {
 
   diffuseColor.rgb = mix(col, uFoam, foam);
   diffuseColor.a = mix(mix(uOpacity.x, uOpacity.y, depthT), 1.0, foam);
-  totalEmissiveRadiance += uFoam * foam * 0.35;
+  totalEmissiveRadiance += uFoam * foam * uFoamGlow;
 }`,
       );
   };
@@ -168,4 +169,9 @@ export class WaterDepth {
     camera.layers.mask = prevLayers;
     waters.forEach((w, i) => (w.visible = vis[i]));
   }
+}
+
+/** Foam glow strength (emissive), e.g. lower for the dark theme so shores don't look lit up. */
+export function setFoamGlow(v) {
+  shared.uFoamGlow.value = v;
 }

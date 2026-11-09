@@ -6,7 +6,7 @@ import { UI, LANGS } from './i18n.js';
 import { buildChinampa, W, L, BED, TOP } from './chinampa.js';
 import { buildCity, insideIsland } from './city.js';
 import { MotionPhysics, updateWater, waveHeight } from './physics.js';
-import { WaterDepth } from './water.js';
+import { WaterDepth, setFoamGlow } from './water.js';
 
 /* ───────────────────────── Renderer & scene ───────────────────────── */
 // Phones and portrait tablets use the compact layout (matches the 900px CSS breakpoint).
@@ -32,7 +32,8 @@ const FOG = {
   city: new THREE.Fog('#e6dbc8', 300, 950),
 };
 
-scene.add(new THREE.HemisphereLight('#fff1d6', '#3d5d4f', 1.25));
+const hemi = new THREE.HemisphereLight('#fff1d6', '#3d5d4f', 1.25);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight('#ffe2b8', 2.3);
 sun.position.set(30, 45, 18);
 sun.castShadow = true;
@@ -816,6 +817,62 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+/* ───────────────────────── Theme (light / dark) ───────────────────────── */
+// Day: warm afternoon sun. Night: cool moonlight over the lake, dimmer sky fill and darker fog.
+const THEMES = {
+  light: {
+    hemi: ['#fff1d6', '#3d5d4f', 1.25], sun: ['#ffe2b8', 2.3], exposure: 1.05,
+    fog: { chinampa: '#e3dccb', city: '#e6dbc8' }, meta: '#2f6b73',
+    foamGlow: 0.35,
+  },
+  dark: {
+    hemi: ['#9fb4dc', '#1b2a2f', 0.85], sun: ['#c8d6ff', 1.35], exposure: 0.95,
+    fog: { chinampa: '#2a2f45', city: '#262c42' }, meta: '#1f1a26',
+    foamGlow: 0.06,
+  },
+};
+const themeBtn = document.getElementById('themeBtn');
+function applyTheme(theme) {
+  const t = THEMES[theme] ? theme : 'light';
+  const p = THEMES[t];
+  document.documentElement.dataset.theme = t;
+  hemi.color.set(p.hemi[0]);
+  hemi.groundColor.set(p.hemi[1]);
+  hemi.intensity = p.hemi[2];
+  sun.color.set(p.sun[0]);
+  sun.intensity = p.sun[1];
+  renderer.toneMappingExposure = p.exposure;
+  setFoamGlow(p.foamGlow);
+  FOG.chinampa.color.set(p.fog.chinampa);
+  FOG.city.color.set(p.fog.city);
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', p.meta);
+  themeBtn.setAttribute('aria-pressed', String(t === 'dark'));
+  const key = t === 'dark' ? 'themeLight' : 'themeDark';
+  themeBtn.dataset.i18nTitle = key;
+  themeBtn.dataset.i18nAria = key;
+  themeBtn.title = T()[key];
+  themeBtn.setAttribute('aria-label', T()[key]);
+}
+themeBtn.addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  try {
+    localStorage.setItem('chinamitl-theme', next);
+  } catch {
+    /* storage unavailable: theme just won't persist */
+  }
+  applyTheme(next);
+});
+// Follow the system setting until the user picks a theme themself.
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  let saved = null;
+  try {
+    saved = localStorage.getItem('chinamitl-theme');
+  } catch {
+    /* ignore */
+  }
+  if (!saved) applyTheme(e.matches ? 'dark' : 'light');
+});
+
 /* ───────────────────────── Language ───────────────────────── */
 const langsEl = document.getElementById('langs');
 langsEl.innerHTML = LANGS.map(
@@ -964,6 +1021,7 @@ function animate() {
 // Dev-only handle for inspecting the scene from the console.
 if (import.meta.env.DEV) window.__chinamitl = { THREE, scene, chin, city, get camera() { return camera; }, get controls() { return controls; }, flyTo, state };
 
+applyTheme(document.documentElement.dataset.theme);
 applyLang();
 setMode('chinampa');
 camera.position.set(60, 45, 70);

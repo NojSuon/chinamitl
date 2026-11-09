@@ -14,13 +14,23 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/src/style.css" />
+    <script>
+      // Apply the saved (or system) theme before first paint to avoid a flash.
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem('chinamitl-theme'); } catch (e) {}
+        if (t !== 'dark' && t !== 'light') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
   </head>
   <body data-mode="chinampa">
     <canvas id="scene"></canvas>
 
     <header class="topbar">
       <div class="brand">
-        <img class="logo" src="/mati-logo-petroleo.png" alt="Mati Mati" width="44" height="44" />
+        <img class="logo logo-light" src="/mati-logo-petroleo.png" alt="Mati Mati" width="44" height="44" />
+        <img class="logo logo-dark" src="/mati-logo-blanco.png" alt="Mati Mati" width="44" height="44" />
         <div>
           <h1>Chinamitl</h1>
           <p><span data-i18n="subtitle">Explorador de chinampas · Mexiko-Tenochtitlan</span> · <span data-i18n="by">por Mati Mati</span></p>
@@ -35,6 +45,11 @@
         </nav>
         <div class="langs" id="langs" role="group" data-i18n-aria="langLabel" aria-label="Idioma"></div>
         <div class="links">
+          <button class="pill theme-btn" id="themeBtn" data-i18n-title="themeDark" data-i18n-aria="themeDark" aria-pressed="false"
+            ><svg class="moon" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1Z" /></svg
+            ><svg class="sun" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2" fill="currentColor" stroke="none" /><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6" /></svg
+          ></button
+          >
           <a class="pill donate" href="https://ko-fi.com/suondilut" target="_blank" rel="noopener" data-i18n-title="donateLong" data-i18n-aria="donateLong"
             ><span aria-hidden="true">♥</span><span class="lbl" data-i18n="donate">Dona</span></a
           >
@@ -47,7 +62,8 @@
 
     <dialog class="about" id="about" aria-labelledby="aboutTitle">
       <button class="close" id="aboutClose" data-i18n-aria="close" aria-label="Cerrar">×</button>
-      <img src="/mati-logo-petroleo.png" alt="" width="56" height="56" class="about-logo" />
+      <img src="/mati-logo-petroleo.png" alt="" width="56" height="56" class="about-logo logo-light" />
+      <img src="/mati-logo-blanco.png" alt="" width="56" height="56" class="about-logo logo-dark" />
       <h2 id="aboutTitle" data-i18n="aboutTitle">Acerca de Mati Mati</h2>
       <p data-i18n="aboutText1"></p>
       <p data-i18n="aboutText2"></p>
