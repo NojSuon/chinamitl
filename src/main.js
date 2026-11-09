@@ -862,16 +862,6 @@ themeBtn.addEventListener('click', () => {
   }
   applyTheme(next);
 });
-// Follow the system setting until the user picks a theme themself.
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-  let saved = null;
-  try {
-    saved = localStorage.getItem('chinamitl-theme');
-  } catch {
-    /* ignore */
-  }
-  if (!saved) applyTheme(e.matches ? 'dark' : 'light');
-});
 
 /* ───────────────────────── Language ───────────────────────── */
 const langsEl = document.getElementById('langs');
